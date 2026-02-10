@@ -1,0 +1,26 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "nexdyn-ipc",
+  "version-string": "0.1.0",
+  "description": "Rigid Body Contact Simulation Platform",
+  "dependencies": [
+    "eigen3",
+    "spdlog",
+    "nlohmann-json",
+    "fmt",
+    "catch2",
+    "tbb",
+    "suitesparse",
+    {
+      "name": "openvdb",
+      "platform": "windows | linux"
+    }
+  ],
+  "builtin-baseline": "a2a478a93d582a4b395a4dc4b7052bfcb42c1f8e",
+  "overrides": [
+    {
+      "name": "fmt",
+      "version": "10.1.1"
+    }
+  ]
+}
