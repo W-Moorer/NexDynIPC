@@ -3,7 +3,7 @@
         "dt": 0.001,
         "max_time": 3.0,
         "newmark_gamma": 0.5,
-        "joint_stiffness": 1000.0
+        "joint_stiffness": 10000000.0
     },
     "bodies": [
         {
