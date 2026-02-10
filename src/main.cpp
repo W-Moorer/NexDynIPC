@@ -6,9 +6,14 @@ int main(int argc, char** argv) {
 
     NexDynIPC::App::SimulationConfig config;
     config.dt = 0.01;
-    config.max_time = 1.0;
+    config.max_time = 3.0; // Run longer to see pendulum swing
     config.output_dir = "output";
-    config.scene_file = "scene.json"; // Placeholder
+    
+    if (argc > 1) {
+        config.scene_file = argv[1];
+    } else {
+        config.scene_file = "double_pendulum"; // Default to double pendulum for testing
+    }
 
     try {
         NexDynIPC::App::Simulation sim(config);

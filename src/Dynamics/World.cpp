@@ -9,6 +9,10 @@ void World::addBody(std::shared_ptr<RigidBody> body) {
     bodies.push_back(body);
 }
 
+void World::addJoint(std::shared_ptr<Joint> joint) {
+    joints.push_back(joint);
+}
+
 void World::addForm(std::shared_ptr<Form> form) {
     forms.push_back(form);
 }

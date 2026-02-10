@@ -24,6 +24,7 @@ find_package(OpenVDB CONFIG REQUIRED)
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
 # Add executable
+# Force re-configure to pick up new files
 file(GLOB_RECURSE SOURCES "${CMAKE_SOURCE_DIR}/src/*.cpp")
 message(STATUS "Detected SOURCES: ${SOURCES}")
 add_executable(NexDynIPC ${SOURCES})

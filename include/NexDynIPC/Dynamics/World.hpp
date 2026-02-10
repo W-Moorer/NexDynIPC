@@ -2,6 +2,7 @@
 
 #include "NexDynIPC/Dynamics/RigidBody.hpp"
 #include "NexDynIPC/Dynamics/Forms/Form.hpp"
+#include "NexDynIPC/Dynamics/Joints/Joint.hpp"
 #include <vector>
 #include <memory>
 
@@ -10,9 +11,11 @@ namespace NexDynIPC::Dynamics {
 class World {
 public:
     std::vector<std::shared_ptr<RigidBody>> bodies;
+    std::vector<std::shared_ptr<Joint>> joints;
     std::vector<std::shared_ptr<Form>> forms;
     
     void addBody(std::shared_ptr<RigidBody> body);
+    void addJoint(std::shared_ptr<Joint> joint);
     void addForm(std::shared_ptr<Form> form);
 
     // Flatten state to vector: [x1, q1, x2, q2, ...] 

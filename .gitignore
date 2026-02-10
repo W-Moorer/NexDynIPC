@@ -43,5 +43,6 @@
 
 temps/
 output/
+figures/
 build/
 vcpkg_installed/

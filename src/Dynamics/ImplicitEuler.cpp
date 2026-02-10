@@ -1,7 +1,10 @@
 #include "NexDynIPC/Dynamics/ImplicitEuler.hpp"
 #include "NexDynIPC/Dynamics/Forms/InertiaForm.hpp"
 #include "NexDynIPC/Dynamics/Forms/GravityForm.hpp"
+#include "NexDynIPC/Dynamics/Forms/ConstraintForm.hpp"
+#include "NexDynIPC/Dynamics/Joints/HingeJoint.hpp"
 #include <iostream>
+#include <unordered_map>
 
 namespace NexDynIPC::Dynamics {
 
@@ -12,6 +15,12 @@ public:
         inertia_form_ = std::make_unique<InertiaForm>(world, dt);
         // Create gravity form
         gravity_form_ = std::make_unique<GravityForm>(world, Eigen::Vector3d(0, -9.81, 0));
+        
+        // Create Constraint Form
+        constraint_form_ = std::make_unique<ConstraintForm>();
+        for(auto& joint : world.joints) {
+            constraint_form_->addJoint(joint);
+        }
     }
 
     void setPredictiveState(const Eigen::VectorXd& x_hat) {
@@ -22,6 +31,12 @@ public:
         double val = inertia_form_->value(x);
         double dt2 = dt_ * dt_;
         val += dt2 * gravity_form_->value(x); // Add gravity scaled by dt^2
+        
+        // ALM constraint energy is NOT scaled by dt² — it's a constraint
+        // enforcement mechanism, not a potential energy. It must compete
+        // directly with the inertia term (weight ~m) to properly enforce joints.
+        val += constraint_form_->value(x);
+
         for (const auto& form : world_.forms) {
             val += dt2 * form->value(x); // Potential energy scaled by dt^2
         }
@@ -44,6 +59,11 @@ public:
         tmp_grad.setZero();
         gravity_form_->gradient(x, tmp_grad);
         grad += dt2 * tmp_grad;
+
+        // Constraint gradient (NOT scaled by dt² — see computeValue comment)
+        tmp_grad.setZero();
+        constraint_form_->gradient(x, tmp_grad);
+        grad += tmp_grad;
 
         // Other forms
         for (const auto& form : world_.forms) {
@@ -74,6 +94,13 @@ public:
             triplets.emplace_back(t.row(), t.col(), t.value() * dt2);
         }
 
+        // Constraint Hessian (NOT scaled by dt² — see computeValue comment)
+        tmp_triplets.clear();
+        constraint_form_->hessian(x, tmp_triplets);
+        for(auto& t : tmp_triplets) {
+            triplets.emplace_back(t.row(), t.col(), t.value());
+        }
+
         // Other forms
         for (const auto& form : world_.forms) {
             tmp_triplets.clear();
@@ -87,11 +114,14 @@ public:
         hess.setFromTriplets(triplets.begin(), triplets.end());
     }
 
+    ConstraintForm* getConstraintForm() { return constraint_form_.get(); }
+
 private:
     World& world_;
     double dt_;
     std::unique_ptr<InertiaForm> inertia_form_;
     std::unique_ptr<GravityForm> gravity_form_;
+    std::unique_ptr<ConstraintForm> constraint_form_;
 };
 
 ImplicitEuler::ImplicitEuler() {
@@ -125,17 +155,70 @@ void ImplicitEuler::step(World& world, double dt) {
     // 2. Predict x_hat = x_n + h * v_n
     Eigen::VectorXd x_hat = x + dt * v;
     
-    // 3. Construct optimization problem
-    SimulationProblem problem(world, dt);
-    problem.setPredictiveState(x_hat);
+    // --- Map Body IDs to State ---
+    std::unordered_map<int, int> body_id_to_idx;
+    std::unordered_map<int, std::shared_ptr<RigidBody>> body_id_to_ptr;
+    idx = 0;
+    for (const auto& body : world.bodies) {
+        if (!body->is_static) {
+            body_id_to_idx[body->id] = idx;
+            idx += 6;
+        }
+        body_id_to_ptr[body->id] = body;
+    }
 
-    // 4. Solve for x_{n+1}
-    // Initial guess: x_hat
+    // ALM Loop
     Eigen::VectorXd x_new = x_hat;
+    const int max_alm_iters = 10;
     
-    bool converged = solver_.minimize(problem, x_new);
-    if (!converged) {
-        std::cerr << "Solver did not converge!" << std::endl;
+    for(int alm_iter = 0; alm_iter < max_alm_iters; ++alm_iter) {
+        // Update Joint State (indices and reference orientation)
+        for (auto& joint : world.joints) {
+            auto hinge = std::dynamic_pointer_cast<NexDynIPC::Dynamics::HingeJoint>(joint);
+            if (hinge) {
+                int idA = hinge->getBodyAId();
+                int idB = hinge->getBodyBId();
+                
+                int idxA = -1;
+                int idxB = -1;
+                Eigen::Vector3d pA = Eigen::Vector3d::Zero();
+                Eigen::Vector3d pB = Eigen::Vector3d::Zero();
+                Eigen::Quaterniond qA = Eigen::Quaterniond::Identity();
+                Eigen::Quaterniond qB = Eigen::Quaterniond::Identity();
+
+                if (body_id_to_idx.count(idA)) {
+                    idxA = body_id_to_idx[idA];
+                    pA = body_id_to_ptr[idA]->position; // Not strictly needed if dynamic, but good for consistency
+                    qA = body_id_to_ptr[idA]->orientation;
+                } else if (body_id_to_ptr.count(idA)) {
+                    // Static body
+                    pA = body_id_to_ptr[idA]->position;
+                    qA = body_id_to_ptr[idA]->orientation;
+                }
+
+                if (body_id_to_idx.count(idB)) {
+                    idxB = body_id_to_idx[idB];
+                    pB = body_id_to_ptr[idB]->position;
+                    qB = body_id_to_ptr[idB]->orientation;
+                } else if (body_id_to_ptr.count(idB)) {
+                    // Static body
+                    pB = body_id_to_ptr[idB]->position;
+                    qB = body_id_to_ptr[idB]->orientation;
+                }
+                
+                hinge->updateState(idxA, idxB, pA, qA, pB, qB);
+            }
+        }
+
+        // Construct optimization problem
+        SimulationProblem problem(world, dt);
+        problem.setPredictiveState(x_hat);
+
+        // Solve Inner Loop (Newton)
+        bool converged = solver_.minimize(problem, x_new);
+        
+        // Update Multipliers
+        problem.getConstraintForm()->updateLambdas(x_new);
     }
 
     // 5. Update World State
