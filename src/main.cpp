@@ -1,7 +1,15 @@
 #include "NexDynIPC/App/Simulation.hpp"
+#include "NexDynIPC/App/JointTests.hpp"
 #include <iostream>
+#include <string>
 
 int main(int argc, char** argv) {
+    // Check for test mode
+    if (argc > 1 && std::string(argv[1]) == "--test") {
+        NexDynIPC::App::JointTests::run();
+        return 0;
+    }
+
     std::cout << "Starting NexDynIPC Simulation (Headless)..." << std::endl;
 
     NexDynIPC::App::SimulationConfig config;

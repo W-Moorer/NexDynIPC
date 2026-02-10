@@ -3,6 +3,9 @@
 #include "NexDynIPC/Dynamics/RigidBody.hpp"
 #include "NexDynIPC/Dynamics/Joints/RevoluteJoint.hpp"
 #include "NexDynIPC/Dynamics/Joints/FixedJoint.hpp"
+#include "NexDynIPC/Dynamics/Joints/SphericalJoint.hpp"
+#include "NexDynIPC/Dynamics/Joints/PrismaticJoint.hpp"
+#include "NexDynIPC/Dynamics/Joints/CylindricalJoint.hpp"
 #include <nlohmann/json.hpp>
 #include <iostream>
 #include <fstream>
@@ -65,6 +68,65 @@ void SceneLoader::load(const std::string& filename, Dynamics::World& world) {
                     int idA = j["body_a"];
                     int idB = j["body_b"];
                     auto joint = std::make_shared<Dynamics::RevoluteJoint>(
+                        idA, idB, anchorA, anchorB, axisA, axisB
+                    );
+                    if (j.contains("stiffness")) {
+                        joint->setStiffness(j["stiffness"].get<double>());
+                    }
+                    world.addJoint(joint);
+                }
+                else if (type == "spherical") {
+                    auto ancA = j["anchor_a"];
+                    auto ancB = j["anchor_b"];
+                    
+                    Eigen::Vector3d anchorA(ancA[0], ancA[1], ancA[2]);
+                    Eigen::Vector3d anchorB(ancB[0], ancB[1], ancB[2]);
+                    
+                    int idA = j["body_a"];
+                    int idB = j["body_b"];
+                    auto joint = std::make_shared<Dynamics::SphericalJoint>(
+                        idA, idB, anchorA, anchorB
+                    );
+                    if (j.contains("stiffness")) {
+                        joint->setStiffness(j["stiffness"].get<double>());
+                    }
+                    world.addJoint(joint);
+                }
+                else if (type == "prismatic") {
+                    auto ancA = j["anchor_a"];
+                    auto ancB = j["anchor_b"];
+                    auto axA = j["axis_a"];
+                    auto axB = j["axis_b"];
+                    
+                    Eigen::Vector3d anchorA(ancA[0], ancA[1], ancA[2]);
+                    Eigen::Vector3d anchorB(ancB[0], ancB[1], ancB[2]);
+                    Eigen::Vector3d axisA(axA[0], axA[1], axA[2]);
+                    Eigen::Vector3d axisB(axB[0], axB[1], axB[2]);
+                    
+                    int idA = j["body_a"];
+                    int idB = j["body_b"];
+                    auto joint = std::make_shared<Dynamics::PrismaticJoint>(
+                        idA, idB, anchorA, anchorB, axisA, axisB
+                    );
+                    if (j.contains("stiffness")) {
+                        joint->setStiffness(j["stiffness"].get<double>());
+                    }
+                    world.addJoint(joint);
+                }
+                else if (type == "cylindrical") {
+                    auto ancA = j["anchor_a"];
+                    auto ancB = j["anchor_b"];
+                    auto axA = j["axis_a"];
+                    auto axB = j["axis_b"];
+                    
+                    Eigen::Vector3d anchorA(ancA[0], ancA[1], ancA[2]);
+                    Eigen::Vector3d anchorB(ancB[0], ancB[1], ancB[2]);
+                    Eigen::Vector3d axisA(axA[0], axA[1], axA[2]);
+                    Eigen::Vector3d axisB(axB[0], axB[1], axB[2]);
+                    
+                    int idA = j["body_a"];
+                    int idB = j["body_b"];
+                    auto joint = std::make_shared<Dynamics::CylindricalJoint>(
                         idA, idB, anchorA, anchorB, axisA, axisB
                     );
                     if (j.contains("stiffness")) {
