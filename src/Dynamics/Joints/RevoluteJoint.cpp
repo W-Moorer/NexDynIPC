@@ -1,9 +1,9 @@
-#include "NexDynIPC/Dynamics/Joints/HingeJoint.hpp"
+#include "NexDynIPC/Dynamics/Joints/RevoluteJoint.hpp"
 #include <iostream>
 
 namespace NexDynIPC::Dynamics {
 
-HingeJoint::HingeJoint(int bodyA, int bodyB, 
+RevoluteJoint::RevoluteJoint(int bodyA, int bodyB, 
                        const Eigen::Vector3d& anchorA, const Eigen::Vector3d& anchorB, 
                        const Eigen::Vector3d& axisA, const Eigen::Vector3d& axisB)
     : bodyA_id_(bodyA), bodyB_id_(bodyB), 
@@ -13,7 +13,7 @@ HingeJoint::HingeJoint(int bodyA, int bodyB,
     lambda_ = Eigen::VectorXd::Zero(dim());
 }
 
-void HingeJoint::updateState(int idxA, int idxB, 
+void RevoluteJoint::updateState(int idxA, int idxB, 
                              const Eigen::Vector3d& pA, const Eigen::Quaterniond& qA, 
                              const Eigen::Vector3d& pB, const Eigen::Quaterniond& qB) {
     global_idx_A_ = idxA;
@@ -43,7 +43,7 @@ static Eigen::Matrix3d crossMat(const Eigen::Vector3d& v) {
     return M;
 }
 
-void HingeJoint::computeC(const Eigen::VectorXd& x, Eigen::VectorXd& C) const {
+void RevoluteJoint::computeC(const Eigen::VectorXd& x, Eigen::VectorXd& C) const {
     if (C.size() != dim()) C.resize(dim());
 
     Eigen::Vector3d pA, pB;
@@ -80,7 +80,7 @@ void HingeJoint::computeC(const Eigen::VectorXd& x, Eigen::VectorXd& C) const {
     C.segment<3>(3) = nA_world.cross(nB_world);
 }
 
-void HingeJoint::computeJ(const Eigen::VectorXd& x, Eigen::SparseMatrix<double>& J) const {
+void RevoluteJoint::computeJ(const Eigen::VectorXd& x, Eigen::SparseMatrix<double>& J) const {
     std::vector<Eigen::Triplet<double>> triplets;
 
     Eigen::Quaterniond qA, qB;

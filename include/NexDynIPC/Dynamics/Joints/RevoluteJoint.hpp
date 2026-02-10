@@ -5,9 +5,9 @@
 
 namespace NexDynIPC::Dynamics {
 
-class HingeJoint : public Joint {
+class RevoluteJoint : public Joint {
 public:
-    HingeJoint(int bodyA, int bodyB, 
+    RevoluteJoint(int bodyA, int bodyB, 
                const Eigen::Vector3d& anchorA, const Eigen::Vector3d& anchorB, 
                const Eigen::Vector3d& axisA, const Eigen::Vector3d& axisB);
 

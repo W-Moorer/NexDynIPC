@@ -5,12 +5,13 @@
 
 namespace NexDynIPC::App {
 
-StateExporter::StateExporter(const std::string& output_dir) : output_dir_(output_dir) {
+StateExporter::StateExporter(const std::string& output_dir, const std::string& output_name) 
+    : output_dir_(output_dir), output_name_(output_name) {
     std::filesystem::create_directories(output_dir_);
 }
 
 void StateExporter::exportFrame(const Dynamics::World& world, int frame_idx, double time) {
-    std::string filename = output_dir_ + "/simulation_results.csv";
+    std::string filename = output_dir_ + "/" + output_name_ + ".csv";
     std::ofstream out;
 
     // Open in append mode

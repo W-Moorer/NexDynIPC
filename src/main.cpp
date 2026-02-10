@@ -5,14 +5,22 @@ int main(int argc, char** argv) {
     std::cout << "Starting NexDynIPC Simulation (Headless)..." << std::endl;
 
     NexDynIPC::App::SimulationConfig config;
-    config.dt = 0.01;
+    config.dt = 0.001;
     config.max_time = 3.0; // Run longer to see pendulum swing
     config.output_dir = "output";
+    
+    // Experimental Settings (Tune these for accuracy/stability)
+    config.newmark_gamma = 0.5;      // 0.5 = No Damping (Noisy Acc), > 0.5 = Damping (Smooth Acc)
+    config.joint_stiffness = 1000.0; // Higher (e.g. 1e5, 1e6) = Less Position Drift, More Noise
     
     if (argc > 1) {
         config.scene_file = argv[1];
     } else {
-        config.scene_file = "double_pendulum"; // Default to double pendulum for testing
+        config.scene_file = "assets/double_pendulum.json"; // Default to JSON asset
+    }
+
+    if (argc > 2) {
+        config.output_name = argv[2];
     }
 
     try {
