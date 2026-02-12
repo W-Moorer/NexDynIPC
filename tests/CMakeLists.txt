@@ -17,6 +17,9 @@ add_executable(nexdynipc_tests
     # Geometry module tests
     geometry/test_aabb.cpp
     geometry/test_bvh.cpp
+    
+    # Dynamics module tests
+    dynamics/test_joint.cpp
 )
 
 # Include directories

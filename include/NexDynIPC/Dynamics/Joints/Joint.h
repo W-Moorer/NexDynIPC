@@ -41,7 +41,7 @@ public:
 
 protected:
     Eigen::VectorXd lambda_;
-    double mu_ = 1000.0; // Default stiffness
+    double mu_ = 1e8; // Default stiffness
 };
 
 } // namespace NexDynIPC::Dynamics
