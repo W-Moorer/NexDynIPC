@@ -1,6 +1,6 @@
-#include "NexDynIPC/App/Simulation.hpp"
-#include "NexDynIPC/App/SceneLoader.hpp"
-#include "NexDynIPC/TimeIntegration/ImplicitTimeIntegrator.hpp"
+#include "NexDynIPC/App/Simulation.h"
+#include "NexDynIPC/App/SceneLoader.h"
+#include "NexDynIPC/TimeIntegration/ImplicitTimeIntegrator.h"
 #include <nlohmann/json.hpp>
 #include <iostream>
 

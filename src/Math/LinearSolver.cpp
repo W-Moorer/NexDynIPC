@@ -1,4 +1,4 @@
-#include "NexDynIPC/Math/LinearSolver.hpp"
+#include "NexDynIPC/Math/LinearSolver.h"
 
 // Use standard Eigen Cholesky solver for now
 // We can switch to CHOLMOD later if performance is an issue

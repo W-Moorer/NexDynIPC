@@ -1,6 +1,6 @@
-#include "NexDynIPC/Math/NewtonSolver.hpp"
-#include "NexDynIPC/Math/LineSearch.hpp"
-#include "NexDynIPC/Math/LinearSolver.hpp"
+#include "NexDynIPC/Math/NewtonSolver.h"
+#include "NexDynIPC/Math/LineSearch.h"
+#include "NexDynIPC/Math/LinearSolver.h"
 
 #include <iostream>
 

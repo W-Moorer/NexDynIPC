@@ -1,4 +1,4 @@
-#include "NexDynIPC/Dynamics/Forms/GravityForm.hpp"
+#include "NexDynIPC/Dynamics/Forms/GravityForm.h"
 
 namespace NexDynIPC::Dynamics {
 

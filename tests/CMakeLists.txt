@@ -13,6 +13,10 @@ add_executable(nexdynipc_tests
     math/test_autodiff.cpp
     math/test_autodiff_types.cpp
     math/test_interval.cpp
+    
+    # Geometry module tests
+    geometry/test_aabb.cpp
+    geometry/test_bvh.cpp
 )
 
 # Include directories

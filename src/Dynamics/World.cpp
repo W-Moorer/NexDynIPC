@@ -1,4 +1,4 @@
-#include "NexDynIPC/Dynamics/World.hpp"
+#include "NexDynIPC/Dynamics/World.h"
 
 namespace NexDynIPC::Dynamics {
 

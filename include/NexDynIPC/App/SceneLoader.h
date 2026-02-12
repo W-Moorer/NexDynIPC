@@ -1,6 +1,6 @@
 #pragma once
 
-#include "NexDynIPC/Dynamics/World.hpp"
+#include "NexDynIPC/Dynamics/World.h"
 #include <string>
 
 namespace NexDynIPC::App {

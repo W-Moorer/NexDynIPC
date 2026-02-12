@@ -1,8 +1,8 @@
 #pragma once
 
-#include "NexDynIPC/Dynamics/World.hpp"
-#include "NexDynIPC/Dynamics/IPCSolver.hpp"
-#include "NexDynIPC/App/StateExporter.hpp"
+#include "NexDynIPC/Dynamics/World.h"
+#include "NexDynIPC/Dynamics/IPCSolver.h"
+#include "NexDynIPC/App/StateExporter.h"
 #include <string>
 #include <memory> 
 

@@ -1,4 +1,4 @@
-#include "NexDynIPC/Physics/Contact/Barrier.hpp"
+#include "NexDynIPC/Physics/Contact/Barrier.h"
 #include <cmath>
 #include <limits>
 

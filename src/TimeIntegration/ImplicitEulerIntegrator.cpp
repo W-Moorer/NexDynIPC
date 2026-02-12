@@ -1,4 +1,4 @@
-#include "NexDynIPC/TimeIntegration/ImplicitEulerIntegrator.hpp"
+#include "NexDynIPC/TimeIntegration/ImplicitEulerIntegrator.h"
 
 namespace NexDynIPC::TimeIntegration {
 

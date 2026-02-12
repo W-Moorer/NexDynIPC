@@ -1,4 +1,4 @@
-#include "NexDynIPC/Dynamics/Joints/PrismaticJoint.hpp"
+#include "NexDynIPC/Dynamics/Joints/PrismaticJoint.h"
 #include <iostream>
 
 namespace NexDynIPC::Dynamics {

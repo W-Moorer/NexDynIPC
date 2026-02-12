@@ -1,7 +1,7 @@
 #pragma once
 
-#include "NexDynIPC/Dynamics/Forms/Form.hpp"
-#include "NexDynIPC/Dynamics/World.hpp"
+#include "NexDynIPC/Dynamics/Forms/Form.h"
+#include "NexDynIPC/Dynamics/World.h"
 
 namespace NexDynIPC::Dynamics {
 

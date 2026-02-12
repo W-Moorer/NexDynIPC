@@ -1,16 +1,17 @@
 #pragma once
 
-#include "NexDynIPC/Dynamics/Joints/Joint.hpp"
+#include "NexDynIPC/Dynamics/Joints/Joint.h"
 #include <Eigen/Geometry>
 
 namespace NexDynIPC::Dynamics {
 
-class SphericalJoint : public Joint {
+class CylindricalJoint : public Joint {
 public:
-    SphericalJoint(int bodyA, int bodyB, 
-                   const Eigen::Vector3d& anchorA, const Eigen::Vector3d& anchorB);
+    CylindricalJoint(int bodyA, int bodyB, 
+                   const Eigen::Vector3d& anchorA, const Eigen::Vector3d& anchorB,
+                   const Eigen::Vector3d& axisA, const Eigen::Vector3d& axisB);
 
-    int dim() const override { return 3; } // 3 pos
+    int dim() const override { return 4; } // 2 pos + 2 rot
     
     int getBodyAId() const { return bodyA_id_; }
     int getBodyBId() const { return bodyB_id_; }
@@ -31,7 +32,6 @@ private:
     int global_idx_A_ = -1;
     int global_idx_B_ = -1;
 
-    // Reference/Static State
     Eigen::Vector3d pA_ref_ = Eigen::Vector3d::Zero();
     Eigen::Vector3d pB_ref_ = Eigen::Vector3d::Zero();
     Eigen::Quaterniond qA_ref_ = Eigen::Quaterniond::Identity();
@@ -39,6 +39,12 @@ private:
 
     Eigen::Vector3d anchorA_; // Local
     Eigen::Vector3d anchorB_; // Local
+    Eigen::Vector3d axisA_;   // Local
+    Eigen::Vector3d axisB_;   // Local
+    
+    // Auxiliary vectors for constraint definition
+    Eigen::Vector3d uA_, vA_; 
+    Eigen::Vector3d uB_, vB_; 
 };
 
 } // namespace NexDynIPC::Dynamics

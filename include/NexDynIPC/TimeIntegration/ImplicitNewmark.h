@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ImplicitTimeIntegrator.hpp"
+#include "ImplicitTimeIntegrator.h"
 
 namespace NexDynIPC::TimeIntegration {
 

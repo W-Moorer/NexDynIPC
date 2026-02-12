@@ -1,4 +1,4 @@
-#include "NexDynIPC/Physics/Geometry/MeshShape.hpp"
+#include "NexDynIPC/Physics/Geometry/MeshShape.h"
 #include <limits>
 
 namespace NexDynIPC::Physics {

@@ -1,4 +1,4 @@
-#include "NexDynIPC/Dynamics/Forms/InertiaForm.hpp"
+#include "NexDynIPC/Dynamics/Forms/InertiaForm.h"
 
 namespace NexDynIPC::Dynamics {
 

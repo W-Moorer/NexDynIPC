@@ -1,6 +1,6 @@
-#include "NexDynIPC/TimeIntegration/ImplicitTimeIntegrator.hpp"
-#include "NexDynIPC/TimeIntegration/ImplicitNewmark.hpp"
-#include "NexDynIPC/TimeIntegration/ImplicitEulerIntegrator.hpp"
+#include "NexDynIPC/TimeIntegration/ImplicitTimeIntegrator.h"
+#include "NexDynIPC/TimeIntegration/ImplicitNewmark.h"
+#include "NexDynIPC/TimeIntegration/ImplicitEulerIntegrator.h"
 #include <iostream>
 
 namespace NexDynIPC::TimeIntegration {

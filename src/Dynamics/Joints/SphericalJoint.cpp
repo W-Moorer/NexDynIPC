@@ -1,4 +1,4 @@
-#include "NexDynIPC/Dynamics/Joints/SphericalJoint.hpp"
+#include "NexDynIPC/Dynamics/Joints/SphericalJoint.h"
 #include <iostream>
 
 namespace NexDynIPC::Dynamics {

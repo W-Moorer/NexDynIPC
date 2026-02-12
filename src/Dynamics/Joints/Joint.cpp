@@ -1,4 +1,4 @@
-#include "NexDynIPC/Dynamics/Joints/Joint.hpp"
+#include "NexDynIPC/Dynamics/Joints/Joint.h"
 
 namespace NexDynIPC::Dynamics {
 

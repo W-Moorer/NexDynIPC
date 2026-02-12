@@ -1,4 +1,4 @@
-#include "NexDynIPC/Dynamics/Joints/RevoluteJoint.hpp"
+#include "NexDynIPC/Dynamics/Joints/RevoluteJoint.h"
 #include <iostream>
 
 namespace NexDynIPC::Dynamics {

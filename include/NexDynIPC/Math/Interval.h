@@ -1,5 +1,5 @@
 /**
- * @file Interval.hpp
+ * @file Interval.h
  * @brief Interval arithmetic for conservative computations
  * 
  * This module provides interval arithmetic capabilities for computing

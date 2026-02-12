@@ -7,7 +7,7 @@
 #include <catch2/generators/catch_generators.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 
-#include <NexDynIPC/Math/AutoDiffTypes.hpp>
+#include <NexDynIPC/Math/AutoDiffTypes.h>
 
 using namespace NexDynIPC::Math;
 using Catch::Matchers::WithinAbs;

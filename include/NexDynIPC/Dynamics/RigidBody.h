@@ -4,7 +4,7 @@
 #include <Eigen/Geometry>
 #include <memory>
 #include <string>
-#include "NexDynIPC/Physics/Geometry/Shape.hpp"
+#include "NexDynIPC/Physics/Geometry/Shape.h"
 
 namespace NexDynIPC::Dynamics {
 

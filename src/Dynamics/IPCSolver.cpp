@@ -1,10 +1,10 @@
-#include "NexDynIPC/Dynamics/IPCSolver.hpp"
-#include "NexDynIPC/Dynamics/Forms/InertiaForm.hpp"
-#include "NexDynIPC/Dynamics/Forms/GravityForm.hpp"
-#include "NexDynIPC/Dynamics/Forms/ConstraintForm.hpp"
-#include "NexDynIPC/Dynamics/Joints/RevoluteJoint.hpp"
-#include "NexDynIPC/Dynamics/Joints/FixedJoint.hpp"
-#include "NexDynIPC/TimeIntegration/ImplicitEulerIntegrator.hpp"
+#include "NexDynIPC/Dynamics/IPCSolver.h"
+#include "NexDynIPC/Dynamics/Forms/InertiaForm.h"
+#include "NexDynIPC/Dynamics/Forms/GravityForm.h"
+#include "NexDynIPC/Dynamics/Forms/ConstraintForm.h"
+#include "NexDynIPC/Dynamics/Joints/RevoluteJoint.h"
+#include "NexDynIPC/Dynamics/Joints/FixedJoint.h"
+#include "NexDynIPC/TimeIntegration/ImplicitEulerIntegrator.h"
 #include <iostream>
 #include <unordered_map>
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "NexDynIPC/Dynamics/Joints/Joint.hpp"
+#include "NexDynIPC/Dynamics/Joints/Joint.h"
 #include <Eigen/Geometry>
 
 namespace NexDynIPC::Dynamics {

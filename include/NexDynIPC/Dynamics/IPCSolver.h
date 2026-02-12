@@ -1,10 +1,10 @@
 #pragma once
 
-#include "NexDynIPC/Dynamics/TimeIntegrator.hpp" // Keep base class if needed, or remove? ImplicitEuler inherited from TimeIntegrator?
+#include "NexDynIPC/Dynamics/TimeIntegrator.h" // Keep base class if needed, or remove? ImplicitEuler inherited from TimeIntegrator?
 // Wait, TimeIntegrator (Dynamics) is different from ImplicitTimeIntegrator (TimeIntegration).
 // Dynamics/TimeIntegrator was an abstract base? Let's check below.
-#include "NexDynIPC/Math/NewtonSolver.hpp"
-#include "NexDynIPC/TimeIntegration/ImplicitTimeIntegrator.hpp"
+#include "NexDynIPC/Math/NewtonSolver.h"
+#include "NexDynIPC/TimeIntegration/ImplicitTimeIntegrator.h"
 #include <memory>
 
 namespace NexDynIPC::Dynamics {

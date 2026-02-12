@@ -1,4 +1,4 @@
-#include "NexDynIPC/TimeIntegration/ImplicitNewmark.hpp"
+#include "NexDynIPC/TimeIntegration/ImplicitNewmark.h"
 
 namespace NexDynIPC::TimeIntegration {
 

@@ -1,7 +1,7 @@
-#include "NexDynIPC/App/JointTests.hpp"
-#include "NexDynIPC/Dynamics/Joints/SphericalJoint.hpp"
-#include "NexDynIPC/Dynamics/Joints/PrismaticJoint.hpp"
-#include "NexDynIPC/Dynamics/Joints/CylindricalJoint.hpp"
+#include "NexDynIPC/App/JointTests.h"
+#include "NexDynIPC/Dynamics/Joints/SphericalJoint.h"
+#include "NexDynIPC/Dynamics/Joints/PrismaticJoint.h"
+#include "NexDynIPC/Dynamics/Joints/CylindricalJoint.h"
 #include <iostream>
 #include <vector>
 #include <cmath>

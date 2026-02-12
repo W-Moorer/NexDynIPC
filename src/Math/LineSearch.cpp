@@ -1,4 +1,4 @@
-#include "NexDynIPC/Math/LineSearch.hpp"
+#include "NexDynIPC/Math/LineSearch.h"
 #include <iostream>
 
 namespace NexDynIPC::Math {

@@ -1,4 +1,4 @@
-#include "NexDynIPC/Dynamics/Joints/FixedJoint.hpp"
+#include "NexDynIPC/Dynamics/Joints/FixedJoint.h"
 #include <iostream>
 
 namespace NexDynIPC::Dynamics {

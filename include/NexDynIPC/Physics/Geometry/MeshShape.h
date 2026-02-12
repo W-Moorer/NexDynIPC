@@ -1,6 +1,6 @@
 #pragma once
 
-#include "NexDynIPC/Physics/Geometry/Shape.hpp"
+#include "NexDynIPC/Physics/Geometry/Shape.h"
 #include <vector>
 
 namespace NexDynIPC::Physics {

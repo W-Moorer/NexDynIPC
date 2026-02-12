@@ -1,5 +1,5 @@
-#include "NexDynIPC/App/Simulation.hpp"
-#include "NexDynIPC/App/JointTests.hpp"
+#include "NexDynIPC/App/Simulation.h"
+#include "NexDynIPC/App/JointTests.h"
 #include <iostream>
 #include <string>
 

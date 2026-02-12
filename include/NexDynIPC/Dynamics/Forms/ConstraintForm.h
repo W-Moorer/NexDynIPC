@@ -1,7 +1,7 @@
 #pragma once
 
-#include "NexDynIPC/Dynamics/Forms/Form.hpp"
-#include "NexDynIPC/Dynamics/Joints/Joint.hpp"
+#include "NexDynIPC/Dynamics/Forms/Form.h"
+#include "NexDynIPC/Dynamics/Joints/Joint.h"
 #include <vector>
 #include <memory>
 

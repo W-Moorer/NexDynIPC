@@ -1,4 +1,4 @@
-#include "NexDynIPC/Dynamics/Joints/CylindricalJoint.hpp"
+#include "NexDynIPC/Dynamics/Joints/CylindricalJoint.h"
 #include <iostream>
 
 namespace NexDynIPC::Dynamics {

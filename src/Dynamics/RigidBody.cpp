@@ -1,4 +1,4 @@
-#include "NexDynIPC/Dynamics/RigidBody.hpp"
+#include "NexDynIPC/Dynamics/RigidBody.h"
 
 namespace NexDynIPC::Dynamics {
 

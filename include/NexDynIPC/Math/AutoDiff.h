@@ -1,5 +1,5 @@
 /**
- * @file AutoDiff.hpp
+ * @file AutoDiff.h
  * @brief Automatic differentiation data type for C++
  * 
  * This library provides automatic differentiation capabilities for computing

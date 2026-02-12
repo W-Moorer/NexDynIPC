@@ -1,4 +1,4 @@
-#include "NexDynIPC/Dynamics/Forms/ConstraintForm.hpp"
+#include "NexDynIPC/Dynamics/Forms/ConstraintForm.h"
 
 namespace NexDynIPC::Dynamics {
 

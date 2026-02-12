@@ -1,12 +1,12 @@
 /**
- * @file AutoDiffTypes.hpp
+ * @file AutoDiffTypes.h
  * @brief Convenient type aliases and helper functions for automatic differentiation
  */
 
 #ifndef NEXDYNIPC_MATH_AUTODIFF_TYPES_HPP
 #define NEXDYNIPC_MATH_AUTODIFF_TYPES_HPP
 
-#include <NexDynIPC/Math/AutoDiff.hpp>
+#include <NexDynIPC/Math/AutoDiff.h>
 #include <vector>
 #include <cassert>
 
