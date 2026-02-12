@@ -18,6 +18,10 @@ add_executable(nexdynipc_tests
     geometry/test_aabb.cpp
     geometry/test_bvh.cpp
     
+    # Physics module tests
+    physics/test_ccd.cpp
+    physics/test_friction.cpp
+    
     # Dynamics module tests
     dynamics/test_joint.cpp
 )
