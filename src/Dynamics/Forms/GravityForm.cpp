@@ -9,9 +9,6 @@ double GravityForm::value(const Eigen::VectorXd& x) const {
     double val = 0.0;
     int idx = 0;
     for (const auto& body : world_.bodies) {
-        if (body->is_static) {
-            continue;
-        }
         Eigen::Vector3d p = x.segment<3>(idx);
         // PE = - m * g^T * p
         val -= body->mass * g_.dot(p);
@@ -23,9 +20,6 @@ double GravityForm::value(const Eigen::VectorXd& x) const {
 void GravityForm::gradient(const Eigen::VectorXd& x, Eigen::VectorXd& grad) const {
     int idx = 0;
     for (const auto& body : world_.bodies) {
-        if (body->is_static) {
-            continue;
-        }
         // Force = m * g
         // Potential gradient = - Force = -m * g
         grad.segment<3>(idx) = -body->mass * g_;

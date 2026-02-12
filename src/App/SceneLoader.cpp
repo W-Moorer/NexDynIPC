@@ -158,22 +158,22 @@ void SceneLoader::load(const std::string& filename, Dynamics::World& world) {
 
     if (filename == "double_pendulum") {
         std::cout << "Loading Hardcoded Double Pendulum..." << std::endl;
-        // ... (Hardcoded Fallback) ...
-        // For brevity in edit, I'll keep the logic or just delegate to JSON if file exists?
-        // Let's keep hardcoded logic below for now, but user should prefer JSON.
         
-        // 1. Static Anchor
+        // 1. Anchor (fixed in space via FixedJoint)
         auto anchor = std::make_shared<Dynamics::RigidBody>();
         anchor->name = "Anchor";
-        anchor->is_static = true;
         anchor->position = Eigen::Vector3d(0, 0, 0); 
-        anchor->id = 0; // Explicit ID assignment for clarity
+        anchor->id = 0;
         world.addBody(anchor);
+        
+        // Add FixedJoint to fix anchor in place
+        auto anchor_fixed = std::make_shared<Dynamics::FixedJoint>(
+            anchor->id, anchor->position, anchor->orientation);
+        world.addJoint(anchor_fixed);
 
         // 2. Link 1
         auto link1 = std::make_shared<Dynamics::RigidBody>();
         link1->name = "Link1";
-        link1->is_static = false;
         link1->mass = 1.0;
         link1->position = Eigen::Vector3d(0.5, 0, 0);
         link1->inertia_body = Eigen::Matrix3d::Identity(); 
@@ -183,7 +183,6 @@ void SceneLoader::load(const std::string& filename, Dynamics::World& world) {
         // 3. Link 2
         auto link2 = std::make_shared<Dynamics::RigidBody>();
         link2->name = "Link2";
-        link2->is_static = false;
         link2->mass = 1.0;
         link2->position = Eigen::Vector3d(1.5, 0, 0);
         link2->inertia_body = Eigen::Matrix3d::Identity();
@@ -212,14 +211,17 @@ void SceneLoader::load(const std::string& filename, Dynamics::World& world) {
 
     auto ground = std::make_shared<Dynamics::RigidBody>();
     ground->name = "Ground";
-    ground->is_static = true;
     ground->position = Eigen::Vector3d(0, -1.0, 0); 
     ground->id = 0;
     world.addBody(ground);
+    
+    // Fix ground in place via FixedJoint
+    auto ground_fixed = std::make_shared<Dynamics::FixedJoint>(
+        ground->id, ground->position, ground->orientation);
+    world.addJoint(ground_fixed);
 
     auto cube = std::make_shared<Dynamics::RigidBody>();
     cube->name = "Cube";
-    cube->is_static = false;
     cube->mass = 1.0;
     cube->position = Eigen::Vector3d(0, 2.0, 0); 
     cube->id = 1;

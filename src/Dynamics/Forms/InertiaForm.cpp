@@ -3,10 +3,7 @@
 namespace NexDynIPC::Dynamics {
 
 InertiaForm::InertiaForm(const World& world, double dt) : world_(world), dt_(dt) {
-    int n = 0;
-    for (const auto& body : world.bodies) {
-        if (!body->is_static) n += 6;
-    }
+    int n = static_cast<int>(world.bodies.size()) * 6;
     x_hat_ = Eigen::VectorXd::Zero(n);
 }
 
@@ -18,10 +15,6 @@ double InertiaForm::value(const Eigen::VectorXd& x) const {
     double energy = 0.0;
     int idx = 0;
     for (const auto& body : world_.bodies) {
-        if (body->is_static) { 
-            continue; 
-        }
-
         // Translation
         Eigen::Vector3d p = x.segment<3>(idx);
         Eigen::Vector3d p_hat = x_hat_.segment<3>(idx);
@@ -45,10 +38,6 @@ void InertiaForm::gradient(const Eigen::VectorXd& x, Eigen::VectorXd& grad) cons
     // grad = M * (x - x_hat)
     int idx = 0;
     for (const auto& body : world_.bodies) {
-        if (body->is_static) {
-            continue;
-        }
-
         // Translation
         Eigen::Vector3d p = x.segment<3>(idx);
         Eigen::Vector3d p_hat = x_hat_.segment<3>(idx);
@@ -67,10 +56,6 @@ void InertiaForm::hessian(const Eigen::VectorXd& x, std::vector<Eigen::Triplet<d
     // Hessian = M
     int idx = 0;
     for (const auto& body : world_.bodies) {
-        if (body->is_static) {
-            continue;
-        }
-
         // Translation Mass
         double m = body->mass;
         triplets.emplace_back(idx + 0, idx + 0, m);

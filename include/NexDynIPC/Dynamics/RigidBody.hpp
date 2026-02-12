@@ -24,7 +24,6 @@ public:
     // Properties
     double mass = 1.0;
     Eigen::Matrix3d inertia_body = Eigen::Matrix3d::Identity(); // Inertia in local frame
-    bool is_static = false;
     double friction_coeff = 0.0;
     double restitution_coeff = 0.0;
 

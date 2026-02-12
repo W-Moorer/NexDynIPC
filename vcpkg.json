@@ -5,6 +5,7 @@
   "description": "Rigid Body Contact Simulation Platform",
   "dependencies": [
     "eigen3",
+    "boost",
     "spdlog",
     "nlohmann-json",
     "fmt",
