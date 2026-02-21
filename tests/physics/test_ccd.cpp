@@ -9,6 +9,7 @@
 #include "NexDynIPC/Physics/Contact/AdaptiveBarrier.h"
 #include "NexDynIPC/Dynamics/RigidBody.h"
 #include "NexDynIPC/Physics/Geometry/MeshShape.h"
+#include "NexDynIPC/Math/Interval.h"
 
 using namespace NexDynIPC::Physics::CCD;
 using namespace NexDynIPC::Physics::Contact;
@@ -152,7 +153,7 @@ TEST_CASE("RigidTrajectoryAABB basic tests", "[ccd][trajectory]")
         PoseInterval pose(pos_t0, pos_t1, rot, rot);
         Eigen::Vector3d local_vertex(0, 0, 0);
         
-        Eigen::Vector3I trajectory = vertexTrajectoryAABB(body, pose, local_vertex);
+        Vector3I trajectory = vertexTrajectoryAABB(body, pose, local_vertex);
         
         REQUIRE_THAT(lower(trajectory.x()), WithinAbs(0.0, 1e-10));
         REQUIRE_THAT(upper(trajectory.x()), WithinAbs(1.0, 1e-10));
@@ -277,7 +278,7 @@ TEST_CASE("Edge-Vertex TOI computation", "[ccd][toi][edge-vertex]")
     bool collision = computeEdgeVertexTOI(
         bodyA, posA_t0, rotA, posA_t1, rotA, vertex,
         bodyB, posB_t0, rotB, posB_t1, rotB, edge_v0, edge_v1,
-        toi);
+        toi, 0.0, 1e-6);
     
     SECTION("Collision detected for approaching bodies")
     {

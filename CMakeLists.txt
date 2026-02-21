@@ -24,6 +24,12 @@ find_package(OpenVDB CONFIG REQUIRED)
 # Include directories
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
+# Include autodiff headers
+include_directories(${CMAKE_SOURCE_DIR}/include/NexDynIPC/Math/autodiff)
+
+# Define AUTODIFF_EIGEN_FOUND since we have Eigen
+add_compile_definitions(AUTODIFF_EIGEN_FOUND)
+
 # Collect source files (excluding main.cpp for library)
 file(GLOB_RECURSE LIB_SOURCES "${CMAKE_SOURCE_DIR}/src/*.cpp")
 list(FILTER LIB_SOURCES EXCLUDE REGEX "src/main\\.cpp$")

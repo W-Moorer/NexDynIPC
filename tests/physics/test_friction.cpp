@@ -6,6 +6,7 @@
 #include "NexDynIPC/Dynamics/Forms/FrictionForm.h"
 #include "NexDynIPC/Dynamics/World.h"
 #include "NexDynIPC/Dynamics/RigidBody.h"
+#include <Eigen/Eigenvalues>
 
 using namespace NexDynIPC::Physics::Contact;
 using namespace NexDynIPC::Dynamics;

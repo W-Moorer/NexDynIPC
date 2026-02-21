@@ -187,7 +187,7 @@ std::vector<double> IPCSolver::computeNormalForces(
             double dist = (posA - posB).norm();
             
             if (dist < dhat && dist > 0) {
-                double barrier_grad = Physics::Contact::BarrierPotential::gradient(dist, dhat, kappa);
+                double barrier_grad = Physics::BarrierPotential::gradient(dist, dhat, kappa);
                 double normal_force = std::abs(barrier_grad);
                 normal_forces.push_back(normal_force);
             }
