@@ -24,6 +24,9 @@ add_executable(nexdynipc_tests
     
     # Dynamics module tests
     dynamics/test_joint.cpp
+    
+    # Control module tests
+    control/test_force_control.cpp
 )
 
 # Include directories
