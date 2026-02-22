@@ -27,6 +27,7 @@ add_executable(nexdynipc_tests
     
     # Control module tests
     control/test_force_control.cpp
+    control/test_velocity_drive_pendulum.cpp
 )
 
 # Include directories
