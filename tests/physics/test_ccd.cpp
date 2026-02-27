@@ -278,7 +278,7 @@ TEST_CASE("Edge-Vertex TOI computation", "[ccd][toi][edge-vertex]")
     bool collision = computeEdgeVertexTOI(
         bodyA, posA_t0, rotA, posA_t1, rotA, vertex,
         bodyB, posB_t0, rotB, posB_t1, rotB, edge_v0, edge_v1,
-        toi, 0.0, 1e-6);
+        toi, 1.0, 1e-6);
     
     SECTION("Collision detected for approaching bodies")
     {

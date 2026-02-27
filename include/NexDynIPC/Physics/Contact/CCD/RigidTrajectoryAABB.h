@@ -3,6 +3,7 @@
 #include "NexDynIPC/Math/Interval.h"
 #include "NexDynIPC/Dynamics/RigidBody.h"
 #include <Eigen/Geometry>
+#include <algorithm>
 
 namespace NexDynIPC::Physics::CCD {
 
@@ -20,9 +21,9 @@ struct PoseInterval {
                  const Eigen::Quaterniond& rot_t0, const Eigen::Quaterniond& rot_t1)
         : rotation_t0(rot_t0), rotation_t1(rot_t1) {
         position = Vector3I(
-            Interval(pos_t0.x(), pos_t1.x()),
-            Interval(pos_t0.y(), pos_t1.y()),
-            Interval(pos_t0.z(), pos_t1.z())
+            Interval(std::min(pos_t0.x(), pos_t1.x()), std::max(pos_t0.x(), pos_t1.x())),
+            Interval(std::min(pos_t0.y(), pos_t1.y()), std::max(pos_t0.y(), pos_t1.y())),
+            Interval(std::min(pos_t0.z(), pos_t1.z()), std::max(pos_t0.z(), pos_t1.z()))
         );
     }
 

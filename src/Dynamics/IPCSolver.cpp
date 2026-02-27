@@ -4,6 +4,9 @@
 #include "NexDynIPC/Dynamics/Forms/ConstraintForm.h"
 #include "NexDynIPC/Dynamics/Joints/RevoluteJoint.h"
 #include "NexDynIPC/Dynamics/Joints/FixedJoint.h"
+#include "NexDynIPC/Dynamics/Joints/SphericalJoint.h"
+#include "NexDynIPC/Dynamics/Joints/PrismaticJoint.h"
+#include "NexDynIPC/Dynamics/Joints/CylindricalJoint.h"
 #include "NexDynIPC/TimeIntegration/ImplicitEulerIntegrator.h"
 #include "NexDynIPC/Physics/Geometry/MeshShape.h"
 #include <iostream>
@@ -300,9 +303,7 @@ void IPCSolver::step(World& world, double dt) {
         world.forms.push_back(friction_form_);
     }
 
-    const int max_alm_iters = 10;
-    
-    for(int alm_iter = 0; alm_iter < max_alm_iters; ++alm_iter) {
+    for(int alm_iter = 0; alm_iter < alm_max_iters_; ++alm_iter) {
         for (auto& joint : world.joints) {
             auto revolute = std::dynamic_pointer_cast<NexDynIPC::Dynamics::RevoluteJoint>(joint);
             if (revolute) {
@@ -328,6 +329,51 @@ void IPCSolver::step(World& world, double dt) {
                 fixed->updateState(bodyIdx, p, q);
                 continue;
             }
+
+            auto spherical = std::dynamic_pointer_cast<NexDynIPC::Dynamics::SphericalJoint>(joint);
+            if (spherical) {
+                int idA = spherical->getBodyAId();
+                int idB = spherical->getBodyBId();
+
+                int idxA = body_id_to_idx[idA];
+                int idxB = body_id_to_idx[idB];
+                Eigen::Vector3d pA = body_id_to_ptr[idA]->position;
+                Eigen::Quaterniond qA = body_id_to_ptr[idA]->orientation;
+                Eigen::Vector3d pB = body_id_to_ptr[idB]->position;
+                Eigen::Quaterniond qB = body_id_to_ptr[idB]->orientation;
+                spherical->updateState(idxA, idxB, pA, qA, pB, qB);
+                continue;
+            }
+
+            auto prismatic = std::dynamic_pointer_cast<NexDynIPC::Dynamics::PrismaticJoint>(joint);
+            if (prismatic) {
+                int idA = prismatic->getBodyAId();
+                int idB = prismatic->getBodyBId();
+
+                int idxA = body_id_to_idx[idA];
+                int idxB = body_id_to_idx[idB];
+                Eigen::Vector3d pA = body_id_to_ptr[idA]->position;
+                Eigen::Quaterniond qA = body_id_to_ptr[idA]->orientation;
+                Eigen::Vector3d pB = body_id_to_ptr[idB]->position;
+                Eigen::Quaterniond qB = body_id_to_ptr[idB]->orientation;
+                prismatic->updateState(idxA, idxB, pA, qA, pB, qB);
+                continue;
+            }
+
+            auto cylindrical = std::dynamic_pointer_cast<NexDynIPC::Dynamics::CylindricalJoint>(joint);
+            if (cylindrical) {
+                int idA = cylindrical->getBodyAId();
+                int idB = cylindrical->getBodyBId();
+
+                int idxA = body_id_to_idx[idA];
+                int idxB = body_id_to_idx[idB];
+                Eigen::Vector3d pA = body_id_to_ptr[idA]->position;
+                Eigen::Quaterniond qA = body_id_to_ptr[idA]->orientation;
+                Eigen::Vector3d pB = body_id_to_ptr[idB]->position;
+                Eigen::Quaterniond qB = body_id_to_ptr[idB]->orientation;
+                cylindrical->updateState(idxA, idxB, pA, qA, pB, qB);
+                continue;
+            }
         }
 
         SimulationProblem problem(world, integrator_);
@@ -335,12 +381,34 @@ void IPCSolver::step(World& world, double dt) {
 
         bool converged = solver_.minimize(problem, x_new);
         
+        double max_constraint_violation = 0.0;
+        double dual_residual = 0.0;
+        for (const auto& joint : problem.getConstraintForm()->getJoints()) {
+            Eigen::VectorXd C;
+            joint->computeC(x_new, C);
+            if (C.size() > 0) {
+                const double inf_norm = C.cwiseAbs().maxCoeff();
+                max_constraint_violation = std::max(max_constraint_violation, inf_norm);
+                dual_residual = std::max(dual_residual, joint->getStiffness() * inf_norm);
+
+                if (inf_norm > alm_hardening_trigger_ * alm_constraint_tolerance_) {
+                    joint->setStiffness(joint->getStiffness() * alm_hardening_ratio_);
+                }
+            }
+        }
+
         problem.getConstraintForm()->updateLambdas(x_new);
         
         // Update normal forces for friction
         if (enable_friction_ && friction_form_) {
             auto normal_forces = computeNormalForces(world, x_new);
             friction_form_->updateNormalForces(normal_forces);
+        }
+
+        if (converged
+            && max_constraint_violation <= alm_constraint_tolerance_
+            && dual_residual <= alm_dual_tolerance_) {
+            break;
         }
     }
 

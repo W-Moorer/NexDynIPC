@@ -7,6 +7,7 @@
 #include "NexDynIPC/Physics/Contact/AdaptiveBarrier.h"
 #include "NexDynIPC/Dynamics/Forms/FrictionForm.h"
 #include <memory>
+#include <algorithm>
 
 namespace NexDynIPC::Dynamics {
 
@@ -39,6 +40,13 @@ public:
     
     FrictionForm* frictionForm() { return friction_form_.get(); }
 
+    // ALM controls
+    void setALMMaxIters(int max_iters) { alm_max_iters_ = std::max(1, max_iters); }
+    void setALMConstraintTolerance(double tol) { alm_constraint_tolerance_ = std::max(1e-12, tol); }
+    void setALMDualTolerance(double tol) { alm_dual_tolerance_ = std::max(1e-12, tol); }
+    void setALMHardeningTrigger(double trigger) { alm_hardening_trigger_ = std::max(1.0, trigger); }
+    void setALMHardeningRatio(double ratio) { alm_hardening_ratio_ = std::max(1.0, ratio); }
+
 private:
     Math::NewtonSolver solver_;
     std::shared_ptr<TimeIntegration::ImplicitTimeIntegrator> integrator_;
@@ -54,6 +62,13 @@ private:
     bool enable_friction_ = false;
     double friction_coeff_ = 0.0;
     std::shared_ptr<FrictionForm> friction_form_;
+
+    // ALM runtime options
+    int alm_max_iters_ = 10;
+    double alm_constraint_tolerance_ = 1e-4;
+    double alm_dual_tolerance_ = 1e-3;
+    double alm_hardening_trigger_ = 2.0;
+    double alm_hardening_ratio_ = 2.0;
     
     void initializeAdaptiveBarrier(World& world);
     double computeMaxStep(World& world, double dt);

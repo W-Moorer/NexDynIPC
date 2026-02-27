@@ -13,10 +13,9 @@ void Simulation::run() {
     // 1. Load scene (and override config from JSON "settings" if present)
     SceneLoader::load(config_.scene_file, world_, config_);
 
-    // 2. Apply Global Stiffness (only to joints that don't have per-joint stiffness set in JSON)
+    // 2. Apply Global Stiffness (only to joints that still have default stiffness)
     for (auto& joint : world_.joints) {
-        // If joint still has default stiffness (1000), apply the global config
-        if (joint->getStiffness() == 1000.0) {
+        if (joint->getStiffness() == 1e8) {
             joint->setStiffness(config_.joint_stiffness);
         }
     }
@@ -30,6 +29,11 @@ void Simulation::run() {
     
     auto integrator = TimeIntegration::ImplicitTimeIntegrator::create(integrator_config);
     solver_->setIntegrator(integrator);
+    solver_->setALMMaxIters(config_.alm_max_iters);
+    solver_->setALMConstraintTolerance(config_.alm_constraint_tolerance);
+    solver_->setALMDualTolerance(config_.alm_dual_tolerance);
+    solver_->setALMHardeningTrigger(config_.alm_hardening_trigger);
+    solver_->setALMHardeningRatio(config_.alm_hardening_ratio);
 
     // 4. Create Exporter
     exporter_ = std::make_unique<StateExporter>(config_.output_dir, config_.output_name);

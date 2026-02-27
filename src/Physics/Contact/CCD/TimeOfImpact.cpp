@@ -1,4 +1,5 @@
 #include "NexDynIPC/Physics/Contact/CCD/TimeOfImpact.h"
+#include <algorithm>
 
 namespace NexDynIPC::Physics::CCD {
 
@@ -36,8 +37,7 @@ bool computeEdgeVertexTOIImpl(
         return result;
     };
     
-    double edge_len = (edge_v1 - edge_v0).norm();
-    Eigen::Vector2d tol(toi_tolerance, DEFAULT_LENGTH_TOL / edge_len);
+    Eigen::Vector2d tol(toi_tolerance, 1.0);
     
     VectorXI x0 = Vector2I(Interval(0, earliest_toi), Interval(0, 1));
     VectorXI toi_interval;
@@ -82,12 +82,7 @@ bool computeEdgeEdgeTOIImpl(
         return result;
     };
     
-    double edgeA_len = (edgeA_v1 - edgeA_v0).norm();
-    double edgeB_len = (edgeB_v1 - edgeB_v0).norm();
-    
-    Eigen::Vector3d tol(toi_tolerance, 
-                        DEFAULT_LENGTH_TOL / edgeA_len,
-                        DEFAULT_LENGTH_TOL / edgeB_len);
+    Eigen::Vector3d tol(toi_tolerance, 1.0, 1.0);
     
     VectorXI x0 = Vector3I(Interval(0, earliest_toi), Interval(0, 1), Interval(0, 1));
     VectorXI toi_interval;
@@ -142,7 +137,7 @@ bool computeFaceVertexTOIImpl(
                lower(w) >= 0 && upper(w) <= 1;
     };
     
-    Eigen::Vector3d tol(toi_tolerance, DEFAULT_LENGTH_TOL, DEFAULT_LENGTH_TOL);
+    Eigen::Vector3d tol(toi_tolerance, 1.0, 1.0);
     
     VectorXI x0 = Vector3I(Interval(0, earliest_toi), Interval(0, 1), Interval(0, 1));
     VectorXI toi_interval;

@@ -8,6 +8,9 @@ find_package(Catch2 CONFIG REQUIRED)
 # Test executable
 add_executable(nexdynipc_tests
     main.cpp
+
+    # App module tests
+    app/test_scene_loader.cpp
     
     # Math module tests
     math/test_autodiff.cpp

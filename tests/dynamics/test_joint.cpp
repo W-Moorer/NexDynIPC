@@ -449,11 +449,13 @@ TEST_CASE("CylindricalJoint constraint - translation and rotation along axis", "
     // 绕z轴旋转90度
     Eigen::Quaterniond quatB(Eigen::AngleAxisd(M_PI / 2, Eigen::Vector3d::UnitZ()));
 
-    // x向量使用增量旋转表示: [px, py, pz, theta_x, theta_y, theta_z, qw, qx, qy, qz...]
-    // 这里 theta = 0 表示没有增量旋转（使用参考姿态）
+        // x向量布局与本测试索引一致：
+        // bodyA: [px, py, pz, theta_x, theta_y, theta_z, pad]
+        // bodyB: [px, py, pz, theta_x, theta_y, theta_z, pad]
+        // 其中 theta=0 表示使用 updateState 中给定的参考姿态。
     Eigen::VectorXd x(14);
-    x << posA.x(), posA.y(), posA.z(), 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0,  // Body A
-         posB.x(), posB.y(), posB.z(), 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0;  // Body B
+        x << posA.x(), posA.y(), posA.z(), 0.0, 0.0, 0.0, 0.0,
+            posB.x(), posB.y(), posB.z(), 0.0, 0.0, 0.0, 0.0;
 
     joint.updateState(0, 7, posA, quatA, posB, quatB);
 

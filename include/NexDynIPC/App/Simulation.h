@@ -22,6 +22,13 @@ struct SimulationConfig {
 
     // Constraint Parameters
     double joint_stiffness = 1000.0;
+
+    // ALM Parameters
+    int alm_max_iters = 10;
+    double alm_constraint_tolerance = 1e-4;
+    double alm_dual_tolerance = 1e-3;
+    double alm_hardening_trigger = 2.0;
+    double alm_hardening_ratio = 2.0;
 };
 
 class Simulation {

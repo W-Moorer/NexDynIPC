@@ -9,8 +9,148 @@
 #include <nlohmann/json.hpp>
 #include <iostream>
 #include <fstream>
+#include <filesystem>
+#include <unordered_set>
 
 namespace NexDynIPC::App {
+
+namespace {
+
+std::string make_joint_signature(const nlohmann::json& entry) {
+    if (!entry.contains("type")) {
+        return "";
+    }
+    nlohmann::json normalized = entry;
+    if (normalized.contains("stiffness")) {
+        normalized.erase("stiffness");
+    }
+    return normalized.dump();
+}
+
+bool add_joint_from_entry(const nlohmann::json& j,
+                          Dynamics::World& world,
+                          std::unordered_set<std::string>& signatures) {
+    if (!j.contains("type")) {
+        return false;
+    }
+
+    const std::string signature = make_joint_signature(j);
+    if (!signature.empty() && signatures.find(signature) != signatures.end()) {
+        std::cout << "Skipping duplicated joint/constraint entry: " << j.value("type", "unknown") << std::endl;
+        return false;
+    }
+
+    std::string type = j.value("type", "");
+
+    if (type == "revolute" || type == "hinge") {
+        auto ancA = j["anchor_a"];
+        auto ancB = j["anchor_b"];
+        auto axA = j["axis_a"];
+        auto axB = j["axis_b"];
+
+        Eigen::Vector3d anchorA(ancA[0], ancA[1], ancA[2]);
+        Eigen::Vector3d anchorB(ancB[0], ancB[1], ancB[2]);
+        Eigen::Vector3d axisA(axA[0], axA[1], axA[2]);
+        Eigen::Vector3d axisB(axB[0], axB[1], axB[2]);
+
+        int idA = j["body_a"];
+        int idB = j["body_b"];
+        auto joint = std::make_shared<Dynamics::RevoluteJoint>(
+            idA, idB, anchorA, anchorB, axisA, axisB
+        );
+        if (j.contains("stiffness")) {
+            joint->setStiffness(j["stiffness"].get<double>());
+        }
+        world.addJoint(joint);
+    }
+    else if (type == "spherical") {
+        auto ancA = j["anchor_a"];
+        auto ancB = j["anchor_b"];
+
+        Eigen::Vector3d anchorA(ancA[0], ancA[1], ancA[2]);
+        Eigen::Vector3d anchorB(ancB[0], ancB[1], ancB[2]);
+
+        int idA = j["body_a"];
+        int idB = j["body_b"];
+        auto joint = std::make_shared<Dynamics::SphericalJoint>(
+            idA, idB, anchorA, anchorB
+        );
+        if (j.contains("stiffness")) {
+            joint->setStiffness(j["stiffness"].get<double>());
+        }
+        world.addJoint(joint);
+    }
+    else if (type == "prismatic") {
+        auto ancA = j["anchor_a"];
+        auto ancB = j["anchor_b"];
+        auto axA = j["axis_a"];
+        auto axB = j["axis_b"];
+
+        Eigen::Vector3d anchorA(ancA[0], ancA[1], ancA[2]);
+        Eigen::Vector3d anchorB(ancB[0], ancB[1], ancB[2]);
+        Eigen::Vector3d axisA(axA[0], axA[1], axA[2]);
+        Eigen::Vector3d axisB(axB[0], axB[1], axB[2]);
+
+        int idA = j["body_a"];
+        int idB = j["body_b"];
+        auto joint = std::make_shared<Dynamics::PrismaticJoint>(
+            idA, idB, anchorA, anchorB, axisA, axisB
+        );
+        if (j.contains("stiffness")) {
+            joint->setStiffness(j["stiffness"].get<double>());
+        }
+        world.addJoint(joint);
+    }
+    else if (type == "cylindrical") {
+        auto ancA = j["anchor_a"];
+        auto ancB = j["anchor_b"];
+        auto axA = j["axis_a"];
+        auto axB = j["axis_b"];
+
+        Eigen::Vector3d anchorA(ancA[0], ancA[1], ancA[2]);
+        Eigen::Vector3d anchorB(ancB[0], ancB[1], ancB[2]);
+        Eigen::Vector3d axisA(axA[0], axA[1], axA[2]);
+        Eigen::Vector3d axisB(axB[0], axB[1], axB[2]);
+
+        int idA = j["body_a"];
+        int idB = j["body_b"];
+        auto joint = std::make_shared<Dynamics::CylindricalJoint>(
+            idA, idB, anchorA, anchorB, axisA, axisB
+        );
+        if (j.contains("stiffness")) {
+            joint->setStiffness(j["stiffness"].get<double>());
+        }
+        world.addJoint(joint);
+    }
+    else if (type == "fixed") {
+        int bodyId = j["body"];
+        auto pos = j["position"];
+        Eigen::Vector3d target_pos(pos[0], pos[1], pos[2]);
+
+        Eigen::Quaterniond target_ori = Eigen::Quaterniond::Identity();
+        if (j.contains("orientation")) {
+            auto ori = j["orientation"];
+            target_ori = Eigen::Quaterniond(ori[3], ori[0], ori[1], ori[2]); // w,x,y,z
+        }
+
+        auto joint = std::make_shared<Dynamics::FixedJoint>(bodyId, target_pos, target_ori);
+        if (j.contains("stiffness")) {
+            joint->setStiffness(j["stiffness"].get<double>());
+        }
+        world.addJoint(joint);
+    }
+    else {
+        std::cout << "Ignoring unsupported constraint type: " << type << std::endl;
+        return false;
+    }
+
+    if (!signature.empty()) {
+        signatures.insert(signature);
+    }
+    return true;
+}
+
+} // namespace
 
 void SceneLoader::load(const std::string& filename, Dynamics::World& world) {
     if (filename.length() >= 5 && filename.substr(filename.length() - 5) == ".json") {
@@ -49,108 +189,17 @@ void SceneLoader::load(const std::string& filename, Dynamics::World& world) {
             }
         }
 
-        // Parse Joints
+        std::unordered_set<std::string> signatures;
+
         if (scene.contains("joints")) {
             for (const auto& j : scene["joints"]) {
-                std::string type = j.value("type", "revolute");
+                add_joint_from_entry(j, world, signatures);
+            }
+        }
 
-                if (type == "revolute" || type == "hinge") {
-                    auto ancA = j["anchor_a"];
-                    auto ancB = j["anchor_b"];
-                    auto axA = j["axis_a"];
-                    auto axB = j["axis_b"];
-                    
-                    Eigen::Vector3d anchorA(ancA[0], ancA[1], ancA[2]);
-                    Eigen::Vector3d anchorB(ancB[0], ancB[1], ancB[2]);
-                    Eigen::Vector3d axisA(axA[0], axA[1], axA[2]);
-                    Eigen::Vector3d axisB(axB[0], axB[1], axB[2]);
-                    
-                    int idA = j["body_a"];
-                    int idB = j["body_b"];
-                    auto joint = std::make_shared<Dynamics::RevoluteJoint>(
-                        idA, idB, anchorA, anchorB, axisA, axisB
-                    );
-                    if (j.contains("stiffness")) {
-                        joint->setStiffness(j["stiffness"].get<double>());
-                    }
-                    world.addJoint(joint);
-                }
-                else if (type == "spherical") {
-                    auto ancA = j["anchor_a"];
-                    auto ancB = j["anchor_b"];
-                    
-                    Eigen::Vector3d anchorA(ancA[0], ancA[1], ancA[2]);
-                    Eigen::Vector3d anchorB(ancB[0], ancB[1], ancB[2]);
-                    
-                    int idA = j["body_a"];
-                    int idB = j["body_b"];
-                    auto joint = std::make_shared<Dynamics::SphericalJoint>(
-                        idA, idB, anchorA, anchorB
-                    );
-                    if (j.contains("stiffness")) {
-                        joint->setStiffness(j["stiffness"].get<double>());
-                    }
-                    world.addJoint(joint);
-                }
-                else if (type == "prismatic") {
-                    auto ancA = j["anchor_a"];
-                    auto ancB = j["anchor_b"];
-                    auto axA = j["axis_a"];
-                    auto axB = j["axis_b"];
-                    
-                    Eigen::Vector3d anchorA(ancA[0], ancA[1], ancA[2]);
-                    Eigen::Vector3d anchorB(ancB[0], ancB[1], ancB[2]);
-                    Eigen::Vector3d axisA(axA[0], axA[1], axA[2]);
-                    Eigen::Vector3d axisB(axB[0], axB[1], axB[2]);
-                    
-                    int idA = j["body_a"];
-                    int idB = j["body_b"];
-                    auto joint = std::make_shared<Dynamics::PrismaticJoint>(
-                        idA, idB, anchorA, anchorB, axisA, axisB
-                    );
-                    if (j.contains("stiffness")) {
-                        joint->setStiffness(j["stiffness"].get<double>());
-                    }
-                    world.addJoint(joint);
-                }
-                else if (type == "cylindrical") {
-                    auto ancA = j["anchor_a"];
-                    auto ancB = j["anchor_b"];
-                    auto axA = j["axis_a"];
-                    auto axB = j["axis_b"];
-                    
-                    Eigen::Vector3d anchorA(ancA[0], ancA[1], ancA[2]);
-                    Eigen::Vector3d anchorB(ancB[0], ancB[1], ancB[2]);
-                    Eigen::Vector3d axisA(axA[0], axA[1], axA[2]);
-                    Eigen::Vector3d axisB(axB[0], axB[1], axB[2]);
-                    
-                    int idA = j["body_a"];
-                    int idB = j["body_b"];
-                    auto joint = std::make_shared<Dynamics::CylindricalJoint>(
-                        idA, idB, anchorA, anchorB, axisA, axisB
-                    );
-                    if (j.contains("stiffness")) {
-                        joint->setStiffness(j["stiffness"].get<double>());
-                    }
-                    world.addJoint(joint);
-                }
-                else if (type == "fixed") {
-                    int bodyId = j["body"];
-                    auto pos = j["position"];
-                    Eigen::Vector3d target_pos(pos[0], pos[1], pos[2]);
-                    
-                    Eigen::Quaterniond target_ori = Eigen::Quaterniond::Identity();
-                    if (j.contains("orientation")) {
-                        auto ori = j["orientation"];
-                        target_ori = Eigen::Quaterniond(ori[3], ori[0], ori[1], ori[2]); // w,x,y,z
-                    }
-                    
-                    auto joint = std::make_shared<Dynamics::FixedJoint>(bodyId, target_pos, target_ori);
-                    if (j.contains("stiffness")) {
-                        joint->setStiffness(j["stiffness"].get<double>());
-                    }
-                    world.addJoint(joint);
-                }
+        if (scene.contains("constraints")) {
+            for (const auto& c : scene["constraints"]) {
+                add_joint_from_entry(c, world, signatures);
             }
         }
         return;
@@ -239,6 +288,8 @@ void SceneLoader::load(const std::string& filename, Dynamics::World& world, Simu
         nlohmann::json scene;
         f >> scene;
 
+        const std::string model_name = scene.value("case_name", std::filesystem::path(filename).stem().string());
+
         if (scene.contains("settings")) {
             auto& s = scene["settings"];
             if (s.contains("dt"))               config.dt = s["dt"].get<double>();
@@ -248,12 +299,25 @@ void SceneLoader::load(const std::string& filename, Dynamics::World& world, Simu
             if (s.contains("joint_stiffness"))    config.joint_stiffness = s["joint_stiffness"].get<double>();
             if (s.contains("integrator_type"))    config.integrator_type = s["integrator_type"].get<std::string>();
             if (s.contains("output_name"))        config.output_name = s["output_name"].get<std::string>();
+            if (s.contains("output_dir"))         config.output_dir = s["output_dir"].get<std::string>();
+            if (s.contains("alm_max_iters"))      config.alm_max_iters = s["alm_max_iters"].get<int>();
+            if (s.contains("alm_constraint_tolerance")) config.alm_constraint_tolerance = s["alm_constraint_tolerance"].get<double>();
+            if (s.contains("alm_dual_tolerance")) config.alm_dual_tolerance = s["alm_dual_tolerance"].get<double>();
+            if (s.contains("alm_hardening_trigger")) config.alm_hardening_trigger = s["alm_hardening_trigger"].get<double>();
+            if (s.contains("alm_hardening_ratio")) config.alm_hardening_ratio = s["alm_hardening_ratio"].get<double>();
             
             std::cout << "Applied settings from JSON:" << std::endl;
             std::cout << "  dt=" << config.dt 
                       << " max_time=" << config.max_time
                       << " gamma=" << config.newmark_gamma 
                       << " stiffness=" << config.joint_stiffness << std::endl;
+        }
+
+        if (config.output_name == "simulation_results") {
+            config.output_name = model_name;
+        }
+        if (config.output_dir == "output") {
+            config.output_dir = "output/" + model_name;
         }
     }
 }
