@@ -22,6 +22,8 @@ public:
         const Eigen::VectorXd& x,
         const Eigen::VectorXd& dir,
         const Eigen::VectorXd& grad,
+        const std::function<double(const Eigen::VectorXd&)>* contact_f = nullptr,
+        const Eigen::VectorXd* contact_grad = nullptr,
         double initial_alpha = 1.0) = 0;
 };
 
@@ -30,13 +32,15 @@ class BacktrackingLineSearch : public LineSearchStrategy {
 public:
     double c1 = 1e-4; // Armijo condition parameter
     double rho = 0.5; // Backtracking reduction factor
-    int max_iter = 50;
+    int max_iter = 20;
 
     double search(
         const std::function<double(const Eigen::VectorXd&)>& f,
         const Eigen::VectorXd& x,
         const Eigen::VectorXd& dir,
         const Eigen::VectorXd& grad,
+        const std::function<double(const Eigen::VectorXd&)>* contact_f = nullptr,
+        const Eigen::VectorXd* contact_grad = nullptr,
         double initial_alpha = 1.0) override;
 };
 

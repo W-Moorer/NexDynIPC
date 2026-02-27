@@ -3,6 +3,19 @@
 
 namespace NexDynIPC::Dynamics {
 
+namespace {
+Eigen::Matrix3d skewSymmetric(const Eigen::Vector3d& v) {
+    Eigen::Matrix3d s = Eigen::Matrix3d::Zero();
+    s(0, 1) = -v.z();
+    s(0, 2) = v.y();
+    s(1, 0) = v.z();
+    s(1, 2) = -v.x();
+    s(2, 0) = -v.y();
+    s(2, 1) = v.x();
+    return s;
+}
+}
+
 FrictionForm::FrictionForm(World& world, double friction_coeff, double eps)
     : world_(world), friction_coeff_(friction_coeff), eps_(eps) {}
 
@@ -44,23 +57,37 @@ void FrictionForm::gradient(const Eigen::VectorXd& x, Eigen::VectorXd& grad) con
         Eigen::Vector3d friction_grad = Physics::Contact::FrictionPotential::gradient(
             tangent_disp, normal_force, friction_coeff_, eps_);
         
-        // Compute gradient w.r.t body DOFs
-        // This requires the Jacobian of tangent displacement w.r.t body state
-        // For simplicity, we approximate using finite differences or
-        // use the contact normal to project the friction force
-        
         int idxA = contact.bodyA_idx * 6;
         int idxB = contact.bodyB_idx * 6;
-        
-        // Project friction gradient onto body DOFs
-        // Friction force opposes tangent displacement
-        Eigen::Vector3d friction_force = -friction_grad;
-        
-        // Apply to body A (opposite direction)
-        grad.segment<3>(idxA) += friction_force;
-        
-        // Apply to body B
-        grad.segment<3>(idxB) -= friction_force;
+
+        Eigen::Vector3d posA, posB;
+        Eigen::Quaterniond rotA, rotB;
+        getBodyState(x, contact.bodyA_idx, posA, rotA);
+        getBodyState(x, contact.bodyB_idx, posB, rotB);
+
+        const Eigen::Vector3d n = (contact.normal.squaredNorm() > 1e-16)
+            ? contact.normal.normalized()
+            : Eigen::Vector3d::UnitY();
+        const Eigen::Matrix3d tangent_projector =
+            Eigen::Matrix3d::Identity() - n * n.transpose();
+
+        const auto& bodyA = world_.bodies[contact.bodyA_idx];
+        const auto& bodyB = world_.bodies[contact.bodyB_idx];
+        const Eigen::Vector3d localA = bodyA->orientation.conjugate() * (contact.contact_point - bodyA->position);
+        const Eigen::Vector3d localB = bodyB->orientation.conjugate() * (contact.contact_point - bodyB->position);
+        const Eigen::Vector3d rA = rotA * localA;
+        const Eigen::Vector3d rB = rotB * localB;
+
+        Eigen::Matrix<double, 3, 6> JA = Eigen::Matrix<double, 3, 6>::Zero();
+        Eigen::Matrix<double, 3, 6> JB = Eigen::Matrix<double, 3, 6>::Zero();
+
+        JA.block<3, 3>(0, 0) = -tangent_projector;
+        JB.block<3, 3>(0, 0) = tangent_projector;
+        JA.block<3, 3>(0, 3) = tangent_projector * skewSymmetric(rA);
+        JB.block<3, 3>(0, 3) = -tangent_projector * skewSymmetric(rB);
+
+        grad.segment<6>(idxA) += JA.transpose() * friction_grad;
+        grad.segment<6>(idxB) += JB.transpose() * friction_grad;
     }
 }
 
@@ -80,26 +107,44 @@ void FrictionForm::hessian(const Eigen::VectorXd& x, std::vector<Eigen::Triplet<
         
         int idxA = contact.bodyA_idx * 6;
         int idxB = contact.bodyB_idx * 6;
-        
-        // Add Hessian blocks for body A
-        for (int row = 0; row < 3; ++row) {
-            for (int col = 0; col < 3; ++col) {
-                triplets.emplace_back(idxA + row, idxA + col, friction_hess(row, col));
-            }
-        }
-        
-        // Add Hessian blocks for body B
-        for (int row = 0; row < 3; ++row) {
-            for (int col = 0; col < 3; ++col) {
-                triplets.emplace_back(idxB + row, idxB + col, friction_hess(row, col));
-            }
-        }
-        
-        // Add cross terms (negative)
-        for (int row = 0; row < 3; ++row) {
-            for (int col = 0; col < 3; ++col) {
-                triplets.emplace_back(idxA + row, idxB + col, -friction_hess(row, col));
-                triplets.emplace_back(idxB + row, idxA + col, -friction_hess(row, col));
+
+        Eigen::Vector3d posA, posB;
+        Eigen::Quaterniond rotA, rotB;
+        getBodyState(x, contact.bodyA_idx, posA, rotA);
+        getBodyState(x, contact.bodyB_idx, posB, rotB);
+
+        const Eigen::Vector3d n = (contact.normal.squaredNorm() > 1e-16)
+            ? contact.normal.normalized()
+            : Eigen::Vector3d::UnitY();
+        const Eigen::Matrix3d tangent_projector =
+            Eigen::Matrix3d::Identity() - n * n.transpose();
+
+        const auto& bodyA = world_.bodies[contact.bodyA_idx];
+        const auto& bodyB = world_.bodies[contact.bodyB_idx];
+        const Eigen::Vector3d localA = bodyA->orientation.conjugate() * (contact.contact_point - bodyA->position);
+        const Eigen::Vector3d localB = bodyB->orientation.conjugate() * (contact.contact_point - bodyB->position);
+        const Eigen::Vector3d rA = rotA * localA;
+        const Eigen::Vector3d rB = rotB * localB;
+
+        Eigen::Matrix<double, 3, 6> JA = Eigen::Matrix<double, 3, 6>::Zero();
+        Eigen::Matrix<double, 3, 6> JB = Eigen::Matrix<double, 3, 6>::Zero();
+
+        JA.block<3, 3>(0, 0) = -tangent_projector;
+        JB.block<3, 3>(0, 0) = tangent_projector;
+        JA.block<3, 3>(0, 3) = tangent_projector * skewSymmetric(rA);
+        JB.block<3, 3>(0, 3) = -tangent_projector * skewSymmetric(rB);
+
+        const Eigen::Matrix<double, 6, 6> HAA = JA.transpose() * friction_hess * JA;
+        const Eigen::Matrix<double, 6, 6> HBB = JB.transpose() * friction_hess * JB;
+        const Eigen::Matrix<double, 6, 6> HAB = JA.transpose() * friction_hess * JB;
+        const Eigen::Matrix<double, 6, 6> HBA = JB.transpose() * friction_hess * JA;
+
+        for (int row = 0; row < 6; ++row) {
+            for (int col = 0; col < 6; ++col) {
+                triplets.emplace_back(idxA + row, idxA + col, HAA(row, col));
+                triplets.emplace_back(idxB + row, idxB + col, HBB(row, col));
+                triplets.emplace_back(idxA + row, idxB + col, HAB(row, col));
+                triplets.emplace_back(idxB + row, idxA + col, HBA(row, col));
             }
         }
     }
@@ -124,22 +169,38 @@ Eigen::Vector3d FrictionForm::computeTangentDisplacement(
     getBodyState(x, contact.bodyA_idx, posA, rotA);
     getBodyState(x, contact.bodyB_idx, posB, rotB);
     
-    // Compute relative tangential velocity/displacement
-    // This is a simplified version - in practice, you'd track the contact point
-    // over time and compute the tangential displacement
-    
-    Eigen::Vector3d rel_velocity = 
-        world_.bodies[contact.bodyA_idx]->velocity - 
-        world_.bodies[contact.bodyB_idx]->velocity;
-    
-    // Project onto tangent plane (perpendicular to normal)
-    Eigen::Vector3d normal = contact.normal;
-    Eigen::Vector3d tangent_velocity = rel_velocity - rel_velocity.dot(normal) * normal;
-    
-    // Approximate displacement as velocity * dt
-    // In a real implementation, you'd integrate this over the timestep
-    double dt = 0.01; // Should be passed from solver
-    return tangent_velocity * dt;
+    const Eigen::Vector3d prev_posA = world_.bodies[contact.bodyA_idx]->position;
+    const Eigen::Vector3d prev_posB = world_.bodies[contact.bodyB_idx]->position;
+
+    const Eigen::Vector3d dispA = posA - prev_posA;
+    const Eigen::Vector3d dispB = posB - prev_posB;
+    const auto& bodyA = world_.bodies[contact.bodyA_idx];
+    const auto& bodyB = world_.bodies[contact.bodyB_idx];
+    const Eigen::Vector3d localA = bodyA->orientation.conjugate() * (contact.contact_point - bodyA->position);
+    const Eigen::Vector3d localB = bodyB->orientation.conjugate() * (contact.contact_point - bodyB->position);
+    const Eigen::Vector3d rA = rotA * localA;
+    const Eigen::Vector3d rB = rotB * localB;
+
+    Eigen::Vector3d omegaA = Eigen::Vector3d::Zero();
+    Eigen::Vector3d omegaB = Eigen::Vector3d::Zero();
+    Eigen::Vector3d point_velA = Eigen::Vector3d::Zero();
+    Eigen::Vector3d point_velB = Eigen::Vector3d::Zero();
+    if (dt_ > 1e-12) {
+        omegaA = x.segment<3>(contact.bodyA_idx * 6 + 3) / dt_;
+        omegaB = x.segment<3>(contact.bodyB_idx * 6 + 3) / dt_;
+        point_velA = dispA / dt_;
+        point_velB = dispB / dt_;
+    }
+    point_velA += omegaA.cross(rA);
+    point_velB += omegaB.cross(rB);
+
+    const Eigen::Vector3d rel_velocity = point_velB - point_velA;
+
+    const Eigen::Vector3d normal = (contact.normal.squaredNorm() > 1e-16)
+        ? contact.normal.normalized()
+        : Eigen::Vector3d::UnitY();
+    const Eigen::Vector3d tangent_velocity = rel_velocity - rel_velocity.dot(normal) * normal;
+    return tangent_velocity * dt_;
 }
 
 void FrictionForm::getBodyState(
@@ -151,14 +212,14 @@ void FrictionForm::getBodyState(
     int idx = body_idx * 6;
     position = x.segment<3>(idx);
     
-    // Convert rotation vector to quaternion
-    Eigen::Vector3d theta = x.segment<3>(idx + 3);
-    double angle = theta.norm();
+    const Eigen::Vector3d theta = x.segment<3>(idx + 3);
+    const double angle = theta.norm();
     if (angle > 1e-10) {
-        Eigen::Vector3d axis = theta / angle;
-        orientation = Eigen::Quaterniond(Eigen::AngleAxisd(angle, axis));
+        const Eigen::Vector3d axis = theta / angle;
+        const Eigen::Quaterniond dq(Eigen::AngleAxisd(angle, axis));
+        orientation = (dq * world_.bodies[body_idx]->orientation).normalized();
     } else {
-        orientation = Eigen::Quaterniond::Identity();
+        orientation = world_.bodies[body_idx]->orientation;
     }
 }
 

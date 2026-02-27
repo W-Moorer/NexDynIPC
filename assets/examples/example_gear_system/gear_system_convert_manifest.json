@@ -1,0 +1,14 @@
+{
+  "rmd": "E:/workspace/NexDynDiff/assets/models/gear_system/gear_system.rmd",
+  "json": "E:/workspace/NexDynDiff/assets/models/gear_system/gear_system.json",
+  "xml": "E:/workspace/NexDynDiff/assets/models/gear_system/gear_system.xml",
+  "mesh_dir": "E:/workspace/NexDynDiff/assets/models/obj/gear_system",
+  "parts": [
+    "Ground",
+    "GEAR21",
+    "GEAR22"
+  ],
+  "reuler_unit_mode": "auto",
+  "export_full_inertia": true,
+  "default_motor_max_force": 1000000.0
+}

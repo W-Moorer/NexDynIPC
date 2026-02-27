@@ -4,6 +4,7 @@
 #include "NexDynIPC/Dynamics/World.h"
 #include "NexDynIPC/Physics/Contact/Friction.h"
 #include "NexDynIPC/Physics/Geometry/MeshShape.h"
+#include <algorithm>
 #include <vector>
 #include <memory>
 
@@ -32,6 +33,9 @@ public:
     // Friction specific interface
     void updateNormalForces(const std::vector<double>& normal_forces);
     void updateContactPoints(const std::vector<ContactPair>& contacts);
+
+    void setTimeStep(double dt) { dt_ = std::max(0.0, dt); }
+    double getTimeStep() const { return dt_; }
     
     void setFrictionCoefficient(double mu) { friction_coeff_ = mu; }
     double frictionCoefficient() const { return friction_coeff_; }
@@ -43,6 +47,7 @@ private:
     World& world_;
     double friction_coeff_;
     double eps_;
+    double dt_ = 0.01;
     
     std::vector<ContactPair> contacts_;
     std::vector<double> normal_forces_;

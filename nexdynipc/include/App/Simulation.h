@@ -5,8 +5,16 @@
 #include "NexDynIPC/App/StateExporter.h"
 #include <string>
 #include <memory> 
+#include <vector>
 
 namespace NexDynIPC::App {
+
+struct ContactPairConfig {
+    int body_a = -1;
+    int body_b = -1;
+    bool enabled = true;
+    double friction = -1.0;
+};
 
 struct SimulationConfig {
     double dt = 0.01;
@@ -24,7 +32,7 @@ struct SimulationConfig {
     double joint_stiffness = 1000.0;
 
     // ALM Parameters
-    int alm_max_iters = 10;
+    int alm_max_iters = 6;
     double alm_constraint_tolerance = 1e-4;
     double alm_dual_tolerance = 1e-3;
     double alm_hardening_trigger = 2.0;
@@ -35,6 +43,13 @@ struct SimulationConfig {
     double kpi_v_w_max = 0.2;
     double kpi_t_sat_max = 0.01;
     double kpi_r_dual_max = 1e-3;
+
+    // Contact Parameters
+    bool contact_enabled = true;
+    double contact_thickness = 1e-3;
+    double contact_stiffness = -1.0;
+    double contact_friction = 0.0;
+    std::vector<ContactPairConfig> contact_pairs;
 };
 
 class Simulation {

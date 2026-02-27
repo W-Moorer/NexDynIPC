@@ -1,0 +1,23 @@
+{
+  "rmd": "E:/workspace/NexDynIPC/assets/examples/example_basic_contact/basic_contact.rmd",
+  "json": "E:/workspace/NexDynIPC/assets/examples/example_basic_contact/basic_contact.json",
+  "mesh_dir": "E:/workspace/NexDynIPC/models/obj/basic_contact",
+  "mesh_count": 2,
+  "meshes": [
+    {
+      "part_id": 3,
+      "part_name": "Body1",
+      "obj": "models/obj/basic_contact/Body1.obj",
+      "vertex_count": 6822,
+      "face_count": 13638
+    },
+    {
+      "part_id": 4,
+      "part_name": "Body2",
+      "obj": "models/obj/basic_contact/Body2.obj",
+      "vertex_count": 762,
+      "face_count": 1518
+    }
+  ],
+  "reuler_unit": "auto"
+}

@@ -37,6 +37,24 @@ void Simulation::run() {
     solver_->setALMHardeningTrigger(config_.alm_hardening_trigger);
     solver_->setALMHardeningRatio(config_.alm_hardening_ratio);
 
+    const bool use_fixed_contact_stiffness = config_.contact_stiffness > 0.0;
+    solver_->enableAdaptiveBarrier(config_.contact_enabled && !use_fixed_contact_stiffness);
+    solver_->setContactDistanceThreshold(config_.contact_thickness);
+    if (use_fixed_contact_stiffness) {
+        solver_->setContactStiffness(config_.contact_stiffness);
+    }
+
+    solver_->enableFriction(config_.contact_friction > 0.0);
+    solver_->setFrictionCoefficient(config_.contact_friction);
+
+    solver_->clearAllowedContactPairs();
+    for (const auto& pair : config_.contact_pairs) {
+        if (!pair.enabled) {
+            continue;
+        }
+        solver_->addAllowedContactPair(pair.body_a, pair.body_b, pair.friction);
+    }
+
     // 4. Create Exporter
     exporter_ = std::make_unique<StateExporter>(config_.output_dir, config_.output_name);
 

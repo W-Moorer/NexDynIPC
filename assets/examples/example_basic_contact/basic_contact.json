@@ -1,0 +1,100 @@
+{
+  "case_name": "basic_contact",
+  "description": "Generated from basic_contact.rmd",
+  "settings": {
+    "dt": 0.001,
+    "max_time": 1.0,
+    "integrator_type": "ImplicitNewmark",
+    "newmark_beta": 0.25,
+    "newmark_gamma": 0.5,
+    "joint_stiffness": 10000000.0,
+    "output_dir": "output/basic_contact",
+    "output_name": "basic_contact"
+  },
+  "bodies": [
+    {
+      "id": 3,
+      "name": "Body1",
+      "mass": 62.8,
+      "position": [
+        0.0,
+        -0.15,
+        0.0
+      ],
+      "inertia": [
+        [
+          0.261666666666667,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.04666666666667,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.889666666666667
+        ]
+      ],
+      "mesh": "models/obj/basic_contact/Body1.obj"
+    },
+    {
+      "id": 4,
+      "name": "Body2",
+      "mass": 4.11025038844665,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "inertia": [
+        [
+          0.00411025038844665,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.00411025038844665,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.00411025038844665
+        ]
+      ],
+      "mesh": "models/obj/basic_contact/Body2.obj"
+    }
+  ],
+  "joints": [
+    {
+      "type": "fixed",
+      "body": 3,
+      "position": [
+        0.0,
+        -0.15,
+        0.0
+      ]
+    }
+  ],
+  "interactions": {
+    "contact": {
+      "global_params": {
+        "default_contact_thickness": 0.0002,
+        "min_contact_stiffness": 1000000.0
+      },
+      "pairs": [
+        {
+          "object1": "Body1",
+          "object2": "Body2",
+          "enabled": true,
+          "friction": 0.2
+        }
+      ]
+    }
+  },
+  "constraints": []
+}

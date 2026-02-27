@@ -21,6 +21,14 @@ public:
     // Compute Hessian
     virtual void computeHessian(const Eigen::VectorXd& x, Eigen::SparseMatrix<double>& hess) = 0;
 
+    // Optional: Contact-only objective contribution for merit checks
+    virtual double computeContactValue(const Eigen::VectorXd& x) { return 0.0; }
+
+    // Optional: Contact-only gradient contribution for merit checks
+    virtual void computeContactGradient(const Eigen::VectorXd& x, Eigen::VectorXd& grad) {
+        grad.setZero(x.size());
+    }
+
     // Optional: Pre-iteration callback
     virtual void preIteration(const Eigen::VectorXd& x) {}
     
@@ -37,6 +45,14 @@ public:
 // Newton-Raphson Solver
 class NewtonSolver {
 public:
+    struct IterationDiagnostics {
+        int iteration = 0;
+        double line_search_alpha = 0.0;
+        double contact_residual = 0.0;
+        double contact_value_before = 0.0;
+        double contact_value_after = 0.0;
+    };
+
     struct Options {
         int max_iterations = 20;
         double tolerance = 1e-6;
@@ -55,9 +71,14 @@ public:
     // Get number of iterations performed
     int getIterations() const { return iterations_; }
 
+    const std::vector<IterationDiagnostics>& lastIterationDiagnostics() const {
+        return last_iteration_diagnostics_;
+    }
+
 private:
     Options opts_;
     int iterations_ = 0;
+    std::vector<IterationDiagnostics> last_iteration_diagnostics_;
 };
 
 } // namespace NexDynIPC::Math

@@ -260,6 +260,40 @@ TEST_CASE("FrictionForm basic functionality", "[friction][form]")
         
         REQUIRE(form.smoothingParameter() == 1e-6);
     }
+
+    SECTION("Tangent displacement follows iterate state, not world velocity")
+    {
+        FrictionForm form(world, 0.5);
+
+        ContactPair contact;
+        contact.bodyA_idx = 0;
+        contact.bodyB_idx = 1;
+        contact.primitive_type = 0;
+        contact.primitiveA_idx = 0;
+        contact.primitiveB_idx = 0;
+        contact.contact_point = Eigen::Vector3d::Zero();
+        contact.normal = Eigen::Vector3d::UnitY();
+        contact.distance = 0.0;
+
+        form.updateContactPoints({contact});
+        form.updateNormalForces({5.0});
+
+        world.bodies[0]->velocity = Eigen::Vector3d(100.0, 0.0, 0.0);
+        world.bodies[1]->velocity = Eigen::Vector3d::Zero();
+
+        Eigen::VectorXd x = Eigen::VectorXd::Zero(12);
+        x.segment<3>(0) = world.bodies[0]->position;
+        x.segment<3>(6) = world.bodies[1]->position;
+        form.setTimeStep(0.01);
+
+        const double e_at_prev_state = form.value(x);
+        REQUIRE_THAT(e_at_prev_state, WithinAbs(0.0, 1e-12));
+
+        x[0] = 0.02;
+        const double e_with_iter_displacement = form.value(x);
+
+        REQUIRE(e_with_iter_displacement > 0.0);
+    }
 }
 
 TEST_CASE("Friction gradient finite difference check", "[friction][gradient]")
@@ -288,6 +322,66 @@ TEST_CASE("Friction gradient finite difference check", "[friction][gradient]")
             
             REQUIRE_THAT(grad[i], WithinAbs(fd_grad, 1e-5));
         }
+    }
+}
+
+TEST_CASE("FrictionForm rotational gradient finite difference", "[friction][form][gradient]")
+{
+    World world;
+
+    auto body1 = std::make_shared<RigidBody>();
+    body1->id = 0;
+    body1->position = Eigen::Vector3d(0, 0, 0);
+    body1->orientation = Eigen::Quaterniond(Eigen::AngleAxisd(0.4, Eigen::Vector3d::UnitY()));
+    body1->velocity = Eigen::Vector3d::Zero();
+    body1->mass = 1.0;
+    world.bodies.push_back(body1);
+
+    auto body2 = std::make_shared<RigidBody>();
+    body2->id = 1;
+    body2->position = Eigen::Vector3d(1, 0, 0);
+    body2->orientation = Eigen::Quaterniond(Eigen::AngleAxisd(-0.2, Eigen::Vector3d::UnitX()));
+    body2->velocity = Eigen::Vector3d::Zero();
+    body2->mass = 1.0;
+    world.bodies.push_back(body2);
+
+    FrictionForm form(world, 0.5, 1e-4);
+    form.setTimeStep(0.01);
+
+    ContactPair contact;
+    contact.bodyA_idx = 0;
+    contact.bodyB_idx = 1;
+    contact.primitive_type = 0;
+    contact.primitiveA_idx = 0;
+    contact.primitiveB_idx = 0;
+    contact.contact_point = Eigen::Vector3d(0.0, 0.0, 1.0);
+    contact.normal = Eigen::Vector3d::UnitY();
+    contact.distance = 0.0;
+
+    form.updateContactPoints({contact});
+    form.updateNormalForces({5.0});
+
+    Eigen::VectorXd x = Eigen::VectorXd::Zero(12);
+    x.segment<3>(0) = body1->position;
+    x.segment<3>(6) = body2->position;
+    x[4] = 0.005;
+    x[10] = -0.003;
+
+    Eigen::VectorXd grad = Eigen::VectorXd::Zero(12);
+    form.gradient(x, grad);
+
+    const double h = 1e-6;
+    for (const int idx : {4, 10}) {
+        Eigen::VectorXd xp = x;
+        Eigen::VectorXd xm = x;
+        xp[idx] += h;
+        xm[idx] -= h;
+
+        const double vp = form.value(xp);
+        const double vm = form.value(xm);
+        const double fd = (vp - vm) / (2.0 * h);
+
+        REQUIRE_THAT(grad[idx], WithinAbs(fd, 6e-2));
     }
 }
 

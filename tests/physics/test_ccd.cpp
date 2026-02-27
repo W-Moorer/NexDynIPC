@@ -230,13 +230,15 @@ TEST_CASE("TimeOfImpactCalculator basic tests", "[ccd][toi]")
 TEST_CASE("CCDSystem basic tests", "[ccd][system]")
 {
     using namespace NexDynIPC::Dynamics;
+    using namespace NexDynIPC::Physics::Contact;
     
     SECTION("CCDSystem default construction")
     {
         CCDSystem ccd;
         
         std::vector<std::shared_ptr<RigidBody>> bodies;
-        double toi = ccd.computeEarliestTOI(bodies, 0.01);
+        ContactCandidateSet candidates;
+        double toi = ccd.computeEarliestTOI(bodies, 0.01, candidates);
         
         REQUIRE_THAT(toi, WithinAbs(1.0, 1e-10));
     }
@@ -246,9 +248,10 @@ TEST_CASE("CCDSystem basic tests", "[ccd][system]")
         CCDSystem ccd;
         
         std::vector<std::shared_ptr<RigidBody>> bodies;
-        Impacts impacts = ccd.detectCollisions(bodies, 0.01);
+        ContactCandidateSet candidates;
+        double toi = ccd.computeEarliestTOI(bodies, 0.01, candidates);
         
-        REQUIRE(impacts.empty());
+        REQUIRE_THAT(toi, WithinAbs(1.0, 1e-10));
     }
 }
 

@@ -79,6 +79,36 @@ python tools/run_asset_suite.py --exe build/Debug/NexDynIPC.exe
 
 ---
 
+### 5. `rmd_export_to_project.py`
+**用途**：从 `.rmd` 导出网格 `OBJ` 与当前项目可解析的 JSON（`bodies/joints/settings` 结构）。
+
+- OBJ 输出目录固定为：`models/obj/{rmd文件名}/`
+- JSON 默认输出为：`{rmd同目录}/{rmd文件名}.json`
+- 关键参数映射：
+	- `PART.MASS -> bodies[].mass`
+	- `PART.CM + MARKER.QP -> bodies[].position`
+	- `PART.IP(6分量) -> bodies[].inertia(3x3)`
+	- `JOINT.Fixed/Revolute -> joints[].fixed/hinge`
+
+#### 用法
+```bash
+python tools/rmd_export_to_project.py <rmd文件路径>
+```
+
+#### 示例
+```bash
+python tools/rmd_export_to_project.py assets/examples/example_basic_contact/basic_contact.rmd
+```
+
+#### 可选参数
+```bash
+python tools/rmd_export_to_project.py <rmd文件路径> \
+	--json-output assets/examples/example_basic_contact/basic_contact.generated.json \
+	--reuler-unit auto
+```
+
+---
+
 ## 依赖库
 这些脚本依赖以下 Python 库：
 - `pandas`: 用于读取和处理 CSV 数据。

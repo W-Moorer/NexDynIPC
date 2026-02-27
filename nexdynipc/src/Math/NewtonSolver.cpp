@@ -2,8 +2,6 @@
 #include "NexDynIPC/Math/LineSearch.h"
 #include "NexDynIPC/Math/LinearSolver.h"
 
-#include <iostream>
-
 namespace NexDynIPC::Math {
 
 NewtonSolver::NewtonSolver(const Options& opts) : opts_(opts) {}
@@ -11,6 +9,7 @@ NewtonSolver::~NewtonSolver() = default;
 
 bool NewtonSolver::minimize(OptimizationProblem& problem, Eigen::VectorXd& x) {
     iterations_ = 0;
+    last_iteration_diagnostics_.clear();
     
     // Create solvers
     auto linear_solver = createCholeskySolver();
@@ -19,6 +18,7 @@ bool NewtonSolver::minimize(OptimizationProblem& problem, Eigen::VectorXd& x) {
     line_search.rho = opts_.line_search_rho;
 
     Eigen::VectorXd grad;
+    Eigen::VectorXd contact_grad;
     Eigen::SparseMatrix<double> hess;
     Eigen::VectorXd dx;
 
@@ -27,9 +27,10 @@ bool NewtonSolver::minimize(OptimizationProblem& problem, Eigen::VectorXd& x) {
 
         // 1. Compute Gradient and Hessian
         problem.computeGradient(x, grad);
+        const double grad_inf = grad.template lpNorm<Eigen::Infinity>();
         
         // Check convergence based on gradient norm
-        if (grad.template lpNorm<Eigen::Infinity>() < opts_.tolerance) {
+        if (grad_inf < opts_.tolerance) {
             return true;
         }
 
@@ -52,9 +53,20 @@ bool NewtonSolver::minimize(OptimizationProblem& problem, Eigen::VectorXd& x) {
         double max_step = problem.maxStep(x, dx);
         double initial_alpha = std::min(1.0, max_step);
 
+        contact_grad.setZero(x.size());
+        problem.computeContactGradient(x, contact_grad);
+        const double contact_residual = contact_grad.template lpNorm<Eigen::Infinity>();
+        const double contact_value_before = problem.computeContactValue(x);
+        const std::function<double(const Eigen::VectorXd&)> contact_merit = [&](const Eigen::VectorXd& xt) {
+            return problem.computeContactValue(xt);
+        };
+
         double alpha = line_search.search(
             [&](const Eigen::VectorXd& xt) { return problem.computeValue(xt); },
-            x, dx, grad, initial_alpha
+            x, dx, grad,
+            &contact_merit,
+            &contact_grad,
+            initial_alpha
         );
 
         if (alpha == 0.0) {
@@ -63,8 +75,18 @@ bool NewtonSolver::minimize(OptimizationProblem& problem, Eigen::VectorXd& x) {
             return false;
         }
 
+        const Eigen::VectorXd x_trial = x + alpha * dx;
+        const double contact_value_after = problem.computeContactValue(x_trial);
+        IterationDiagnostics diag;
+        diag.iteration = iter;
+        diag.line_search_alpha = alpha;
+        diag.contact_residual = contact_residual;
+        diag.contact_value_before = contact_value_before;
+        diag.contact_value_after = contact_value_after;
+        last_iteration_diagnostics_.push_back(diag);
+
         // 4. Update
-        x += alpha * dx;
+        x = x_trial;
         
         problem.postIteration(x);
     }

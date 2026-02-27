@@ -13,16 +13,115 @@
 #include "NexDynIPC/Control/PositionDriveForm.h"
 #include "NexDynIPC/Control/ForceDriveForm.h"
 #include "NexDynIPC/Control/DampedSpringForm.h"
+#include "NexDynIPC/Physics/Geometry/MeshShape.h"
 #include <nlohmann/json.hpp>
 #include <iostream>
 #include <fstream>
 #include <filesystem>
 #include <unordered_set>
+#include <unordered_map>
+#include <sstream>
+#include <vector>
 #include <numbers>
 
 namespace NexDynIPC::App {
 
 namespace {
+
+int parse_obj_face_index(const std::string& token) {
+    const auto slash = token.find('/');
+    const std::string idx_text = (slash == std::string::npos) ? token : token.substr(0, slash);
+    if (idx_text.empty()) {
+        return -1;
+    }
+    return std::stoi(idx_text) - 1;
+}
+
+std::shared_ptr<NexDynIPC::Physics::MeshShape> load_obj_mesh(const std::filesystem::path& obj_path) {
+    std::ifstream in(obj_path);
+    if (!in.is_open()) {
+        std::cerr << "Failed to open OBJ: " << obj_path.string() << std::endl;
+        return nullptr;
+    }
+
+    std::vector<Eigen::Vector3d> vertices;
+    std::vector<Eigen::Vector3i> faces;
+
+    std::string line;
+    while (std::getline(in, line)) {
+        if (line.empty() || line[0] == '#') {
+            continue;
+        }
+
+        std::istringstream iss(line);
+        std::string tag;
+        iss >> tag;
+        if (tag == "v") {
+            double x = 0.0;
+            double y = 0.0;
+            double z = 0.0;
+            iss >> x >> y >> z;
+            vertices.emplace_back(x, y, z);
+        } else if (tag == "f") {
+            std::vector<int> idx;
+            std::string token;
+            while (iss >> token) {
+                try {
+                    idx.push_back(parse_obj_face_index(token));
+                } catch (const std::exception&) {
+                    idx.clear();
+                    break;
+                }
+            }
+
+            if (idx.size() < 3) {
+                continue;
+            }
+
+            for (size_t i = 1; i + 1 < idx.size(); ++i) {
+                const int a = idx[0];
+                const int b = idx[i];
+                const int c = idx[i + 1];
+                if (a < 0 || b < 0 || c < 0) {
+                    continue;
+                }
+                faces.emplace_back(a, b, c);
+            }
+        }
+    }
+
+    if (vertices.empty() || faces.empty()) {
+        std::cerr << "OBJ has no valid mesh data: " << obj_path.string() << std::endl;
+        return nullptr;
+    }
+
+    Eigen::MatrixXd V(vertices.size(), 3);
+    for (size_t i = 0; i < vertices.size(); ++i) {
+        V.row(static_cast<int>(i)) = vertices[i];
+    }
+
+    Eigen::MatrixXi F(faces.size(), 3);
+    for (size_t i = 0; i < faces.size(); ++i) {
+        F.row(static_cast<int>(i)) = faces[i];
+    }
+
+    return std::make_shared<NexDynIPC::Physics::MeshShape>(V, F);
+}
+
+int resolve_body_id(const nlohmann::json& id_or_name,
+                    const std::unordered_map<std::string, int>& name_to_id) {
+    if (id_or_name.is_number_integer()) {
+        return id_or_name.get<int>();
+    }
+    if (id_or_name.is_string()) {
+        const std::string name = id_or_name.get<std::string>();
+        auto it = name_to_id.find(name);
+        if (it != name_to_id.end()) {
+            return it->second;
+        }
+    }
+    return -1;
+}
 
 std::string make_joint_signature(const nlohmann::json& entry) {
     if (!entry.contains("type")) {
@@ -371,11 +470,18 @@ void SceneLoader::load(const std::string& filename, Dynamics::World& world) {
 
         // Parse Bodies
         if (scene.contains("bodies")) {
+            const std::filesystem::path scene_path(filename);
+            const std::filesystem::path scene_dir = scene_path.has_parent_path()
+                ? scene_path.parent_path()
+                : std::filesystem::current_path();
+
             for (const auto& b : scene["bodies"]) {
                 auto body = std::make_shared<Dynamics::RigidBody>();
                 body->id = b.value("id", -1);
                 body->name = b.value("name", "Body");
                 body->mass = b.value("mass", 1.0);
+                body->friction_coeff = b.value("friction", body->friction_coeff);
+                body->restitution_coeff = b.value("restitution", body->restitution_coeff);
                 
                 if (b.contains("position")) {
                     auto p = b["position"];
@@ -389,6 +495,20 @@ void SceneLoader::load(const std::string& filename, Dynamics::World& world) {
                     body->inertia_body = mat;
                 } else {
                     body->inertia_body = Eigen::Matrix3d::Identity();
+                }
+
+                if (b.contains("mesh") && b["mesh"].is_string()) {
+                    const std::filesystem::path mesh_rel = b["mesh"].get<std::string>();
+                    std::filesystem::path mesh_path = mesh_rel;
+                    if (mesh_rel.is_relative()) {
+                        const std::filesystem::path from_scene = scene_dir / mesh_rel;
+                        if (std::filesystem::exists(from_scene)) {
+                            mesh_path = from_scene;
+                        } else {
+                            mesh_path = std::filesystem::current_path() / mesh_rel;
+                        }
+                    }
+                    body->shape = load_obj_mesh(mesh_path);
                 }
                 
                 world.addBody(body);
@@ -521,6 +641,60 @@ void SceneLoader::load(const std::string& filename, Dynamics::World& world, Simu
                       << " max_time=" << config.max_time
                       << " gamma=" << config.newmark_gamma 
                       << " stiffness=" << config.joint_stiffness << std::endl;
+        }
+
+        if (scene.contains("interactions") && scene["interactions"].contains("contact")) {
+            const auto& contact = scene["interactions"]["contact"];
+            config.contact_enabled = true;
+
+            if (contact.contains("global_params")) {
+                const auto& gp = contact["global_params"];
+                if (gp.contains("default_contact_thickness")) {
+                    config.contact_thickness = gp["default_contact_thickness"].get<double>();
+                }
+                if (gp.contains("min_contact_stiffness")) {
+                    config.contact_stiffness = gp["min_contact_stiffness"].get<double>();
+                }
+            }
+
+            config.contact_pairs.clear();
+
+            std::unordered_map<std::string, int> name_to_id;
+            for (const auto& body : world.bodies) {
+                name_to_id[body->name] = body->id;
+            }
+
+            if (contact.contains("pairs") && contact["pairs"].is_array()) {
+                for (const auto& p : contact["pairs"]) {
+                    if (!p.contains("object1") || !p.contains("object2")) {
+                        continue;
+                    }
+
+                    ContactPairConfig pair_cfg;
+                    pair_cfg.body_a = resolve_body_id(p["object1"], name_to_id);
+                    pair_cfg.body_b = resolve_body_id(p["object2"], name_to_id);
+                    pair_cfg.enabled = p.value("enabled", true);
+                    pair_cfg.friction = p.value("friction", -1.0);
+
+                    if (pair_cfg.body_a >= 0 && pair_cfg.body_b >= 0) {
+                        config.contact_pairs.push_back(pair_cfg);
+                    }
+                }
+            }
+
+            if (!config.contact_pairs.empty()) {
+                double sum_mu = 0.0;
+                int count_mu = 0;
+                for (const auto& pair : config.contact_pairs) {
+                    if (pair.enabled && pair.friction >= 0.0) {
+                        sum_mu += pair.friction;
+                        ++count_mu;
+                    }
+                }
+                if (count_mu > 0) {
+                    config.contact_friction = sum_mu / static_cast<double>(count_mu);
+                }
+            }
         }
 
         if (config.output_name == "simulation_results") {

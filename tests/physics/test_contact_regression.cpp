@@ -145,6 +145,7 @@ TEST_CASE("IPCSolver contact controls setter/getter", "[contact][regression]")
     solver.setFrictionCoefficient(0.35);
     solver.enableAdaptiveBarrier(true);
     solver.adaptiveBarrier().setDhat(0.02);
+    solver.setALMContactTolerance(5e-4);
 
     REQUIRE(!solver.isCCDEnabled());
     REQUIRE(solver.ccdSafetyFactor() == Approx(0.6));
@@ -152,6 +153,21 @@ TEST_CASE("IPCSolver contact controls setter/getter", "[contact][regression]")
     REQUIRE(solver.frictionCoefficient() == Approx(0.35));
     REQUIRE(solver.isAdaptiveBarrierEnabled());
     REQUIRE(solver.adaptiveBarrier().currentDhat() == Approx(0.02));
+    REQUIRE(solver.lastContactResidual() == Approx(0.0));
+    REQUIRE(solver.lastContactResidualSeries().empty());
+
+    const auto export_dir = std::filesystem::temp_directory_path() / "nexdynipc_contact_diag_tests";
+    std::filesystem::create_directories(export_dir);
+    const auto export_path = export_dir / "contact_residual_series.csv";
+
+    REQUIRE(solver.writeLastContactResidualSeriesCSV(export_path.string()));
+    REQUIRE(std::filesystem::exists(export_path));
+
+    std::ifstream in(export_path);
+    REQUIRE(in.is_open());
+    std::string header;
+    REQUIRE(std::getline(in, header));
+    REQUIRE(header == "alm_iteration,newton_iteration,contact_residual,line_search_alpha,contact_value_before,contact_value_after");
 }
 
 TEST_CASE("OBJ mesh AABB is valid", "[contact][regression]")
@@ -194,11 +210,11 @@ TEST_CASE("OBJ contact broadphase smoke", "[contact][regression]")
 
     Geometry::AABB cube_box(cube_min, cube_max);
 
-    const double target_bottom = cube_max.y() + 0.02;
-    const double sphere_shift_y = target_bottom - sphere_min.y();
+    const Eigen::Vector3d sphere_extent = sphere_max - sphere_min;
+    const Eigen::Vector3d desired_sphere_center = cube_box.center() + Eigen::Vector3d(0.0, 0.25 * cube_box.extent().y(), 0.0);
     Geometry::AABB sphere_box(
-        Eigen::Vector3d(sphere_min.x(), sphere_min.y() + sphere_shift_y, sphere_min.z()),
-        Eigen::Vector3d(sphere_max.x(), sphere_max.y() + sphere_shift_y, sphere_max.z()));
+        desired_sphere_center - 0.5 * sphere_extent,
+        desired_sphere_center + 0.5 * sphere_extent);
 
     std::vector<Geometry::AABB> boxes;
     boxes.push_back(cube_box.inflated(0.05));

@@ -1,0 +1,169 @@
+{
+  "version": "1.0",
+  "metadata": {
+    "name": "gear_system",
+    "source_rmd": "E:/workspace/NexDynDiff/assets/models/gear_system/gear_system.rmd"
+  },
+  "settings": {
+    "output": {
+      "simulation_name": "gear_system",
+      "output_directory": "./output/gear_system",
+      "codegen_directory": "./codegen/rmd_generated",
+      "enable_output": true,
+      "fps": 1000
+    },
+    "simulation": {
+      "gravity": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "init_frictional_contact": true,
+      "max_time_step_size": 0.001
+    },
+    "execution": {
+      "end_simulation_time": 1.0
+    }
+  },
+  "objects": {
+    "rigidbodies": [
+      {
+        "id": "GEAR21",
+        "label": "GEAR21",
+        "mass": 0.000133136344904928,
+        "inertia_diagonal": [
+          0.000101373364551386,
+          0.000228361045813721,
+          0.000228351850267242
+        ],
+        "geometry": {
+          "type": "file",
+          "path": "../obj/gear_system/GEAR21.obj"
+        },
+        "transform": {
+          "translation": [
+            20.9136192988016,
+            0.503589451286037,
+            1.36499444260163
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "inertia_tensor": [
+          [
+            0.000101373364551386,
+            2.38526617299908e-09,
+            -1.29082453949326e-09
+          ],
+          [
+            2.38526617299908e-09,
+            0.000228361045813721,
+            4.02042333612973e-10
+          ],
+          [
+            -1.29082453949326e-09,
+            4.02042333612973e-10,
+            0.000228351850267242
+          ]
+        ]
+      },
+      {
+        "id": "GEAR22",
+        "label": "GEAR22",
+        "mass": 0.000133136344903739,
+        "inertia_diagonal": [
+          0.00010137339520582,
+          0.000228361098940409,
+          0.000228351827787442
+        ],
+        "geometry": {
+          "type": "file",
+          "path": "../obj/gear_system/GEAR22.obj"
+        },
+        "transform": {
+          "translation": [
+            20.9136192988086,
+            0.503589459392722,
+            -1.36500556929607
+          ],
+          "rotation": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "inertia_tensor": [
+          [
+            0.00010137339520582,
+            2.38490392081788e-09,
+            -1.27917372931833e-09
+          ],
+          [
+            2.38490392081788e-09,
+            0.000228361098940409,
+            3.98727775331749e-10
+          ],
+          [
+            -1.27917372931833e-09,
+            3.98727775331749e-10,
+            0.000228351827787442
+          ]
+        ]
+      }
+    ]
+  },
+  "boundary_conditions": [
+    {
+      "type": "rigidbody_constraint",
+      "constraint_type": "motor_to_world",
+      "target": "GEAR21",
+      "pivot": [
+        20.9136192988016,
+        0.503589451286037,
+        1.36499444260163
+      ],
+      "axis": [
+        1.219044193948984e-29,
+        -3.4914813388431334e-15,
+        -1.0
+      ],
+      "target_velocity": 1.0,
+      "max_force": 1000000.0
+    },
+    {
+      "type": "rigidbody_constraint",
+      "constraint_type": "hinge_to_world",
+      "target": "GEAR22",
+      "pivot": [
+        20.9136192988086,
+        0.503589459392722,
+        -1.36500556929607
+      ],
+      "axis": [
+        1.219044193948984e-29,
+        -3.4914813388431334e-15,
+        -1.0
+      ]
+    }
+  ],
+  "interactions": {
+    "contact": {
+      "global_params": {
+        "default_contact_thickness": 0.01,
+        "min_contact_stiffness": 100000.0,
+        "intersection_test_enabled": false
+      },
+      "pairs": [
+        {
+          "object1": "GEAR22",
+          "object2": "GEAR21",
+          "enabled": true,
+          "friction": 0.0
+        }
+      ]
+    }
+  }
+}

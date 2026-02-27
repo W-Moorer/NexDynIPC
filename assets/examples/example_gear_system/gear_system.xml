@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<scene version="1.0">
+  <settings>
+    <output simulation_name="gear_system" output_directory="./output/gear_system" codegen_directory="./codegen/rmd_generated" enable_output="true" fps="1000" />
+    <simulation init_frictional_contact="true" gravity="0,0,0" max_time_step_size="0.001" />
+    <execution end_simulation_time="1.0" />
+  </settings>
+  <objects>
+    <rigidbodies>
+      <rigidbody id="GEAR21" label="GEAR21" mass="0.000133136344904928" inertia_diagonal="0.00010137336455138601,0.00022836104581372101,0.00022835185026724201" inertia_tensor="0.00010137336455138601,2.3852661729990799e-09,-1.2908245394932599e-09,2.3852661729990799e-09,0.00022836104581372101,4.02042333612973e-10,-1.2908245394932599e-09,4.02042333612973e-10,0.00022835185026724201">
+        <geometry type="file" path="../obj/gear_system/GEAR21.obj" />
+        <transform translation="20.913619298801599,0.50358945128603705,1.3649944426016301" rotation="0,0,0" />
+      </rigidbody>
+      <rigidbody id="GEAR22" label="GEAR22" mass="0.000133136344903739" inertia_diagonal="0.00010137339520581999,0.00022836109894040901,0.00022835182778744201" inertia_tensor="0.00010137339520581999,2.3849039208178802e-09,-1.2791737293183301e-09,2.3849039208178802e-09,0.00022836109894040901,3.98727775331749e-10,-1.2791737293183301e-09,3.98727775331749e-10,0.00022835182778744201">
+        <geometry type="file" path="../obj/gear_system/GEAR22.obj" />
+        <transform translation="20.913619298808602,0.50358945939272204,-1.3650055692960701" rotation="0,0,0" />
+      </rigidbody>
+    </rigidbodies>
+  </objects>
+  <boundary_conditions>
+    <rigidbody_constraint type="motor_to_world" target="GEAR21" pivot="20.913619298801599,0.50358945128603705,1.3649944426016301" axis="1.2190441939489839e-29,-3.4914813388431334e-15,-1" target_velocity="1.0" max_force="1000000.0" />
+    <rigidbody_constraint type="hinge_to_world" target="GEAR22" pivot="20.913619298808602,0.50358945939272204,-1.3650055692960701" axis="1.2190441939489839e-29,-3.4914813388431334e-15,-1" />
+  </boundary_conditions>
+  <interactions>
+    <contact>
+      <global_params default_contact_thickness="0.01" min_contact_stiffness="100000.0" />
+      <friction_pair object1="GEAR22" object2="GEAR21" enabled="true" friction="0.0" />
+    </contact>
+  </interactions>
+</scene>
