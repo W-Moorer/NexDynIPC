@@ -36,7 +36,7 @@ add_executable(nexdynipc_tests
 
 # Include directories
 target_include_directories(nexdynipc_tests PRIVATE
-    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/nexdynipc
 )
 
 # Link libraries

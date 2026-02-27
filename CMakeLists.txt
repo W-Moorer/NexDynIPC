@@ -21,17 +21,18 @@ find_package(TBB CONFIG REQUIRED)
 find_package(CHOLMOD CONFIG REQUIRED) 
 find_package(OpenVDB CONFIG REQUIRED)
 
-# Include directories
-include_directories(${CMAKE_SOURCE_DIR}/include)
+# Include directories - NexDynIPC library headers are in nexdynipc/include
+# Use nexdynipc as root so that #include "NexDynIPC/..." resolves correctly
+include_directories(${CMAKE_SOURCE_DIR}/nexdynipc)
 
-# Include autodiff headers
-include_directories(${CMAKE_SOURCE_DIR}/include/NexDynIPC/Math/autodiff)
+# Include autodiff headers (they use relative paths from nexdynipc root)
+include_directories(${CMAKE_SOURCE_DIR}/nexdynipc/include/Math/autodiff)
 
 # Define AUTODIFF_EIGEN_FOUND since we have Eigen
 add_compile_definitions(AUTODIFF_EIGEN_FOUND)
 
 # Collect source files (excluding main.cpp for library)
-file(GLOB_RECURSE LIB_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.cpp")
+file(GLOB_RECURSE LIB_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/nexdynipc/src/*.cpp")
 list(FILTER LIB_SOURCES EXCLUDE REGEX "src/main\\.cpp$")
 message(STATUS "Detected LIB_SOURCES: ${LIB_SOURCES}")
 
@@ -57,7 +58,7 @@ else()
 endif()
 
 # Create executable
-add_executable(NexDynIPC ${CMAKE_SOURCE_DIR}/src/main.cpp)
+add_executable(NexDynIPC ${CMAKE_SOURCE_DIR}/nexdynipc/src/main.cpp)
 target_link_libraries(NexDynIPC PRIVATE NexDynIPC_lib)
 
 # Compiler options for executable
