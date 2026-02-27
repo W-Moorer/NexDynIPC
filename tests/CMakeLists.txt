@@ -24,6 +24,7 @@ add_executable(nexdynipc_tests
     # Physics module tests
     physics/test_ccd.cpp
     physics/test_friction.cpp
+    physics/test_contact_regression.cpp
     
     # Dynamics module tests
     dynamics/test_joint.cpp
