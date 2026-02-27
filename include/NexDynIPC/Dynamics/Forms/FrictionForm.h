@@ -38,6 +38,9 @@ public:
     
     void setSmoothingParameter(double eps) { eps_ = eps; }
     double smoothingParameter() const { return eps_; }
+
+    void setTimeStep(double dt) { dt_ = dt > 0.0 ? dt : dt_; }
+    double timeStep() const { return dt_; }
     
 private:
     World& world_;
@@ -46,6 +49,7 @@ private:
     
     std::vector<ContactPair> contacts_;
     std::vector<double> normal_forces_;
+    double dt_ = 0.01;
     
     // Compute tangent displacement for a contact pair
     Eigen::Vector3d computeTangentDisplacement(

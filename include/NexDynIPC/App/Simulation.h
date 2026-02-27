@@ -35,6 +35,23 @@ struct SimulationConfig {
     double kpi_v_w_max = 0.2;
     double kpi_t_sat_max = 0.01;
     double kpi_r_dual_max = 1e-3;
+
+    // Contact/CCD settings (settings.contact)
+    bool contact_enabled = true;
+    double contact_dhat = 1e-3;
+
+    bool contact_friction_enabled = false;
+    double contact_friction_mu = 0.0;
+
+    bool contact_ccd_enabled = true;
+    double contact_ccd_safety_factor = 0.8;
+    int contact_ccd_max_substeps = 8;
+    double contact_ccd_min_step_ratio = 0.1;
+
+    // P1 solver stabilization
+    bool solver_newton_fallback_enabled = true;
+    int solver_newton_fallback_retries = 2;
+    double solver_newton_fallback_damping = 0.5;
 };
 
 class Simulation {

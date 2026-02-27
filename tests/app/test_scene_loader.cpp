@@ -162,6 +162,57 @@ TEST_CASE("SceneLoader applies ALM and output defaults", "[app][scene_loader]") 
     REQUIRE(config.output_dir == "output/alm_case");
 }
 
+TEST_CASE("SceneLoader applies contact settings block", "[app][scene_loader]") {
+    const std::string scene_json = R"JSON(
+{
+  "case_name": "contact_settings_case",
+  "settings": {
+    "contact": {
+      "enabled": true,
+      "dhat": 0.02,
+      "friction": {
+        "enabled": true,
+        "mu": 0.45
+      },
+      "ccd": {
+        "enabled": true,
+        "safety_factor": 0.7,
+        "max_substeps": 6,
+        "min_step_ratio": 0.15
+      }
+    },
+    "solver": {
+      "newton_fallback_enabled": true,
+      "newton_fallback_retries": 3,
+      "newton_fallback_damping": 0.4
+    }
+  },
+  "bodies": [
+    {"id": 0, "name": "base", "mass": 1.0, "position": [0.0, 0.0, 0.0]}
+  ]
+}
+)JSON";
+
+    const auto file = write_temp_scene("contact_settings_scene", scene_json);
+
+    World world;
+    SimulationConfig config;
+    SceneLoader::load(file.string(), world, config);
+
+    REQUIRE(config.contact_enabled == true);
+    REQUIRE(config.contact_dhat == Approx(0.02));
+    REQUIRE(config.contact_friction_enabled == true);
+    REQUIRE(config.contact_friction_mu == Approx(0.45));
+    REQUIRE(config.contact_ccd_enabled == true);
+    REQUIRE(config.contact_ccd_safety_factor == Approx(0.7));
+    REQUIRE(config.contact_ccd_max_substeps == 6);
+    REQUIRE(config.contact_ccd_min_step_ratio == Approx(0.15));
+
+    REQUIRE(config.solver_newton_fallback_enabled == true);
+    REQUIRE(config.solver_newton_fallback_retries == 3);
+    REQUIRE(config.solver_newton_fallback_damping == Approx(0.4));
+}
+
 TEST_CASE("SceneLoader loads angular velocity drive constraint into forms", "[app][scene_loader]") {
     const std::string scene_json = R"JSON(
 {

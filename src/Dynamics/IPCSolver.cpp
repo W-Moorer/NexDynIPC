@@ -16,6 +16,9 @@
 #include "NexDynIPC/Control/DampedSpringForm.h"
 #include "NexDynIPC/TimeIntegration/ImplicitEulerIntegrator.h"
 #include "NexDynIPC/Physics/Geometry/MeshShape.h"
+#include "NexDynIPC/Physics/Contact/BroadPhase.h"
+#include "NexDynIPC/Physics/Contact/CollisionCandidates.h"
+#include "NexDynIPC/Physics/Contact/Distance.h"
 #include <iostream>
 #include <unordered_map>
 #include <algorithm>
@@ -176,84 +179,82 @@ double IPCSolver::computeMaxStep(World& world, double dt) {
 std::vector<double> IPCSolver::computeNormalForces(
     World& world,
     const Eigen::VectorXd& x) {
-    
+    (void)world;
+    (void)x;
     std::vector<double> normal_forces;
-    
-    // Compute normal forces from barrier potential gradient
-    // This is a simplified version - in practice, you'd compute this from
-    // the barrier potential gradient at each contact point
-    
-    for (size_t i = 0; i < world.bodies.size(); ++i) {
-        for (size_t j = i + 1; j < world.bodies.size(); ++j) {
-            auto meshA = std::dynamic_pointer_cast<Physics::MeshShape>(world.bodies[i]->shape);
-            auto meshB = std::dynamic_pointer_cast<Physics::MeshShape>(world.bodies[j]->shape);
-            
-            if (!meshA || !meshB) continue;
-            
-            // Compute approximate normal force from barrier
-            // F_n = -grad_barrier
-            double dhat = adaptive_barrier_.currentDhat();
-            double kappa = adaptive_barrier_.currentStiffness();
-            
-            // For each potential contact, compute normal force
-            // This is simplified - real implementation would check actual contacts
-            Eigen::Vector3d posA = world.bodies[i]->position;
-            Eigen::Vector3d posB = world.bodies[j]->position;
-            double dist = (posA - posB).norm();
-            
-            if (dist < dhat && dist > 0) {
-                double barrier_grad = Physics::BarrierPotential::gradient(dist, dhat, kappa);
-                double normal_force = std::abs(barrier_grad);
-                normal_forces.push_back(normal_force);
-            }
+
+    normal_forces.reserve(cached_contacts_.size());
+    const double dhat = adaptive_barrier_.currentDhat();
+    const double kappa = adaptive_barrier_.currentStiffness();
+    for (const auto& contact : cached_contacts_) {
+        if (contact.distance > 0.0 && contact.distance < dhat) {
+            const double barrier_grad = Physics::BarrierPotential::gradient(contact.distance, dhat, kappa);
+            normal_forces.push_back(std::abs(barrier_grad));
+        } else {
+            normal_forces.push_back(0.0);
         }
     }
-    
+
+    cached_normal_forces_ = normal_forces;
     return normal_forces;
 }
 
 std::vector<ContactPair> IPCSolver::detectContacts(World& world) {
     std::vector<ContactPair> contacts;
-    
-    for (size_t i = 0; i < world.bodies.size(); ++i) {
-        for (size_t j = i + 1; j < world.bodies.size(); ++j) {
-            auto meshA = std::dynamic_pointer_cast<Physics::MeshShape>(world.bodies[i]->shape);
-            auto meshB = std::dynamic_pointer_cast<Physics::MeshShape>(world.bodies[j]->shape);
-            
-            if (!meshA || !meshB) continue;
-            
-            // Simplified contact detection
-            // In practice, you'd use the actual collision detection results
-            Eigen::Vector3d posA = world.bodies[i]->position;
-            Eigen::Vector3d posB = world.bodies[j]->position;
-            double dist = (posA - posB).norm();
-            
-            double dhat = adaptive_barrier_.currentDhat();
-            
-            if (dist < dhat && dist > 0) {
-                ContactPair contact;
-                contact.bodyA_idx = i;
-                contact.bodyB_idx = j;
-                contact.primitive_type = 0; // vertex-face approximation
-                contact.primitiveA_idx = 0;
-                contact.primitiveB_idx = 0;
-                contact.contact_point = 0.5 * (posA + posB);
-                contact.normal = (posB - posA).normalized();
-                contact.distance = dist;
-                
-                contacts.push_back(contact);
-            }
+
+    std::vector<Physics::Geometry::AABB> aabbs;
+    aabbs.reserve(world.bodies.size());
+
+    for (const auto& body : world.bodies) {
+        const auto mesh = std::dynamic_pointer_cast<Physics::MeshShape>(body->shape);
+        if (!mesh) {
+            aabbs.emplace_back(body->position, body->position);
+            continue;
         }
+
+        const auto [local_min, local_max] = mesh->computeAABB();
+        Eigen::Vector3d world_min = body->toWorld(local_min);
+        Eigen::Vector3d world_max = body->toWorld(local_max);
+        aabbs.emplace_back(world_min.cwiseMin(world_max), world_min.cwiseMax(world_max));
     }
-    
+
+    Physics::BVHBroadPhase broad_phase(adaptive_barrier_.currentDhat());
+    const auto broad_pairs = broad_phase.detect(aabbs);
+
+    Physics::Contact::CollisionCandidatesBuilder candidate_builder;
+    const auto candidates = candidate_builder.build(world.bodies, broad_pairs);
+
+    const auto distances = Physics::Contact::computeNarrowPhaseDistances(
+        candidates,
+        world.bodies,
+        adaptive_barrier_.currentDhat());
+
+    contacts.reserve(distances.size());
+    for (const auto& d : distances) {
+        ContactPair contact;
+        contact.bodyA_idx = d.bodyA_idx;
+        contact.bodyB_idx = d.bodyB_idx;
+        contact.primitive_type = static_cast<int>(d.type);
+        contact.primitiveA_idx = d.primitiveA_idx;
+        contact.primitiveB_idx = d.primitiveB_idx;
+        contact.contact_point = 0.5 * (d.pointA + d.pointB);
+        contact.normal = d.normal;
+        contact.distance = d.distance;
+        contacts.push_back(contact);
+    }
+
+    cached_contacts_ = contacts;
     return contacts;
 }
 
-void IPCSolver::step(World& world, double dt) {
+void IPCSolver::stepSingle(World& world, double dt) {
     if (!integrator_) {
         std::cerr << "Reference Error: Integrator not set in IPCSolver!" << std::endl;
         return;
     }
+
+    cached_contacts_.clear();
+    cached_normal_forces_.clear();
 
     if (enable_adaptive_barrier_) {
         static bool barrier_initialized = false;
@@ -261,7 +262,7 @@ void IPCSolver::step(World& world, double dt) {
             initializeAdaptiveBarrier(world);
             barrier_initialized = true;
         }
-        
+
         double min_dist = Physics::Contact::computeSceneMinDistance(world.bodies);
         if (min_dist < std::numeric_limits<double>::infinity()) {
             adaptive_barrier_.updateStiffness(min_dist);
@@ -269,9 +270,6 @@ void IPCSolver::step(World& world, double dt) {
     }
 
     double actual_dt = dt;
-    if (enable_ccd_) {
-        actual_dt = computeMaxStep(world, dt);
-    }
 
     int n = static_cast<int>(world.bodies.size()) * 6;
     
@@ -310,6 +308,7 @@ void IPCSolver::step(World& world, double dt) {
     // Setup friction form if enabled
     if (enable_friction_ && friction_coeff_ > 0) {
         friction_form_ = std::make_shared<FrictionForm>(world, friction_coeff_);
+        friction_form_->setTimeStep(actual_dt);
         auto contacts = detectContacts(world);
         friction_form_->updateContactPoints(contacts);
         world.forms.push_back(friction_form_);
@@ -462,6 +461,16 @@ void IPCSolver::step(World& world, double dt) {
         problem.setPredictiveState(x_hat);
 
         bool converged = solver_.minimize(problem, x_new);
+        if (!converged && enable_newton_fallback_) {
+            for (int retry = 0; retry < newton_fallback_retries_ && !converged; ++retry) {
+                x_new = newton_fallback_damping_ * x_hat + (1.0 - newton_fallback_damping_) * x_new;
+                converged = solver_.minimize(problem, x_new);
+                ++last_newton_fallbacks_;
+            }
+        }
+        if (!converged) {
+            last_solver_converged_ = false;
+        }
         
         double max_constraint_violation = 0.0;
         double dual_residual = 0.0;
@@ -562,6 +571,51 @@ void IPCSolver::step(World& world, double dt) {
             std::remove(world.forms.begin(), world.forms.end(), friction_form_),
             world.forms.end());
     }
+}
+
+void IPCSolver::step(World& world, double dt) {
+    if (!enable_ccd_) {
+        last_ccd_toi_ratio_ = 1.0;
+        last_ccd_substeps_ = 1;
+        last_newton_fallbacks_ = 0;
+        last_solver_converged_ = true;
+        stepSingle(world, dt);
+        return;
+    }
+
+    double remaining_dt = dt;
+    int substeps = 0;
+    const double min_substep_dt = std::max(1e-8, ccd_min_step_ratio_ * dt);
+
+    last_newton_fallbacks_ = 0;
+    last_solver_converged_ = true;
+    last_ccd_toi_ratio_ = 1.0;
+
+    while (remaining_dt > 1e-12 && substeps < ccd_max_substeps_) {
+        double step_dt = computeMaxStep(world, remaining_dt);
+        if (remaining_dt > 1e-12) {
+            last_ccd_toi_ratio_ = std::max(0.0, std::min(1.0, step_dt / remaining_dt));
+        }
+
+        if (step_dt < min_substep_dt) {
+            step_dt = std::min(min_substep_dt, remaining_dt);
+        }
+
+        if (step_dt <= 1e-12) {
+            break;
+        }
+
+        stepSingle(world, step_dt);
+        remaining_dt -= step_dt;
+        ++substeps;
+    }
+
+    if (remaining_dt > 1e-10) {
+        stepSingle(world, remaining_dt);
+        ++substeps;
+    }
+
+    last_ccd_substeps_ = std::max(1, substeps);
 }
 
 } // namespace NexDynIPC::Dynamics

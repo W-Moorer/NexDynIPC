@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 3.20)
 
 project(NexDynIPC)
 
+if(MSVC)
+    set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT Embedded)
+endif()
+
 # Set C++ Standard
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -51,7 +55,7 @@ target_link_libraries(NexDynIPC_lib PUBLIC
 
 # Compiler options for library
 if(MSVC)
-    target_compile_options(NexDynIPC_lib PRIVATE /W4 /permissive-)
+    target_compile_options(NexDynIPC_lib PRIVATE /W4 /permissive- /FS)
 else()
     target_compile_options(NexDynIPC_lib PRIVATE -Wall -Wextra -Wpedantic)
 endif()
@@ -62,7 +66,7 @@ target_link_libraries(NexDynIPC PRIVATE NexDynIPC_lib)
 
 # Compiler options for executable
 if(MSVC)
-    target_compile_options(NexDynIPC PRIVATE /W4 /permissive-)
+    target_compile_options(NexDynIPC PRIVATE /W4 /permissive- /FS)
 else()
     target_compile_options(NexDynIPC PRIVATE -Wall -Wextra -Wpedantic)
 endif()

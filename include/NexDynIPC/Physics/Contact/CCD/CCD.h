@@ -55,12 +55,12 @@ public:
             Eigen::Vector3d posA_t0 = bodyA->position;
             Eigen::Quaterniond rotA_t0 = bodyA->orientation;
             Eigen::Vector3d posA_t1 = posA_t0 + bodyA->velocity * dt;
-            Eigen::Quaterniond rotA_t1 = rotA_t0; // TODO: integrate angular velocity
+            Eigen::Quaterniond rotA_t1 = integrateRotation(rotA_t0, bodyA->angular_velocity, dt);
             
             Eigen::Vector3d posB_t0 = bodyB->position;
             Eigen::Quaterniond rotB_t0 = bodyB->orientation;
             Eigen::Vector3d posB_t1 = posB_t0 + bodyB->velocity * dt;
-            Eigen::Quaterniond rotB_t1 = rotB_t0; // TODO: integrate angular velocity
+            Eigen::Quaterniond rotB_t1 = integrateRotation(rotB_t0, bodyB->angular_velocity, dt);
             
             if (candidate.type == 0) {
                 collision = toi_calculator_.computeFaceVertex(
@@ -103,12 +103,12 @@ public:
             Eigen::Vector3d posA_t0 = bodyA->position;
             Eigen::Quaterniond rotA_t0 = bodyA->orientation;
             Eigen::Vector3d posA_t1 = posA_t0 + bodyA->velocity * dt;
-            Eigen::Quaterniond rotA_t1 = rotA_t0;
+            Eigen::Quaterniond rotA_t1 = integrateRotation(rotA_t0, bodyA->angular_velocity, dt);
             
             Eigen::Vector3d posB_t0 = bodyB->position;
             Eigen::Quaterniond rotB_t0 = bodyB->orientation;
             Eigen::Vector3d posB_t1 = posB_t0 + bodyB->velocity * dt;
-            Eigen::Quaterniond rotB_t1 = rotB_t0;
+            Eigen::Quaterniond rotB_t1 = integrateRotation(rotB_t0, bodyB->angular_velocity, dt);
             
             if (candidate.type == 0) {
                 collision = toi_calculator_.computeFaceVertex(
@@ -140,6 +140,19 @@ public:
 private:
     TimeOfImpactCalculator toi_calculator_;
     DetectionMethod method_;
+
+    static Eigen::Quaterniond integrateRotation(
+        const Eigen::Quaterniond& q0,
+        const Eigen::Vector3d& omega,
+        double dt) {
+        const double angle = omega.norm() * dt;
+        if (angle < 1e-12) {
+            return q0;
+        }
+        const Eigen::Vector3d axis = omega.normalized();
+        const Eigen::Quaterniond dq(Eigen::AngleAxisd(angle, axis));
+        return (dq * q0).normalized();
+    }
     
     void detectCandidates(
         const std::vector<std::shared_ptr<RigidBody>>& bodies,
