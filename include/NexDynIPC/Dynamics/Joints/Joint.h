@@ -29,8 +29,8 @@ public:
     // Hessian: d^2E/dx^2 approx J^T * mu * J (Gauss-Newton)
     virtual void hessian(const Eigen::VectorXd& x, std::vector<Eigen::Triplet<double>>& triplets) const;
 
-    // Update Lagrange Multiplier: lambda += mu * C
-    void updateLambda(const Eigen::VectorXd& x);
+    // Update Lagrange Multiplier: lambda += mu * C (or projected update in inequality joints)
+    virtual void updateLambda(const Eigen::VectorXd& x);
 
     // Reset Multiplier
     void resetLambda();

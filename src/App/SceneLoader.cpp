@@ -1,16 +1,24 @@
 #include "NexDynIPC/App/SceneLoader.h"
 #include "NexDynIPC/App/Simulation.h"
 #include "NexDynIPC/Dynamics/RigidBody.h"
-#include "NexDynIPC/Dynamics/Joints/RevoluteJoint.h"
+#include "NexDynIPC/Dynamics/Joints/HingeJoint.h"
 #include "NexDynIPC/Dynamics/Joints/FixedJoint.h"
 #include "NexDynIPC/Dynamics/Joints/SphericalJoint.h"
 #include "NexDynIPC/Dynamics/Joints/PrismaticJoint.h"
 #include "NexDynIPC/Dynamics/Joints/CylindricalJoint.h"
+#include "NexDynIPC/Dynamics/Joints/AngleLimitJoint.h"
+#include "NexDynIPC/Dynamics/Joints/DistanceLimitJoint.h"
+#include "NexDynIPC/Control/VelocityDriveForm.h"
+#include "NexDynIPC/Control/LinearVelocityDriveForm.h"
+#include "NexDynIPC/Control/PositionDriveForm.h"
+#include "NexDynIPC/Control/ForceDriveForm.h"
+#include "NexDynIPC/Control/DampedSpringForm.h"
 #include <nlohmann/json.hpp>
 #include <iostream>
 #include <fstream>
 #include <filesystem>
 #include <unordered_set>
+#include <numbers>
 
 namespace NexDynIPC::App {
 
@@ -21,6 +29,12 @@ std::string make_joint_signature(const nlohmann::json& entry) {
         return "";
     }
     nlohmann::json normalized = entry;
+    if (normalized.contains("type") && normalized["type"].is_string()) {
+        const std::string raw_type = normalized["type"].get<std::string>();
+        if (raw_type == "revolute") {
+            normalized["type"] = "hinge";
+        }
+    }
     if (normalized.contains("stiffness")) {
         normalized.erase("stiffness");
     }
@@ -41,8 +55,27 @@ bool add_joint_from_entry(const nlohmann::json& j,
     }
 
     std::string type = j.value("type", "");
+    if (type == "revolute") {
+        static bool revolute_deprecated_warned = false;
+        if (!revolute_deprecated_warned) {
+            std::cout << "[SceneLoader] Deprecated joint type 'revolute' detected. "
+                         "Please migrate to 'hinge'. Backward compatibility is currently enabled."
+                      << std::endl;
+            revolute_deprecated_warned = true;
+        }
+        type = "hinge";
+    }
 
-    if (type == "revolute" || type == "hinge") {
+    auto find_body_by_id = [&](int body_id) -> std::shared_ptr<Dynamics::RigidBody> {
+        for (const auto& body : world.bodies) {
+            if (body->id == body_id) {
+                return body;
+            }
+        }
+        return nullptr;
+    };
+
+    if (type == "hinge") {
         auto ancA = j["anchor_a"];
         auto ancB = j["anchor_b"];
         auto axA = j["axis_a"];
@@ -55,7 +88,7 @@ bool add_joint_from_entry(const nlohmann::json& j,
 
         int idA = j["body_a"];
         int idB = j["body_b"];
-        auto joint = std::make_shared<Dynamics::RevoluteJoint>(
+        auto joint = std::make_shared<Dynamics::HingeJoint>(
             idA, idB, anchorA, anchorB, axisA, axisB
         );
         if (j.contains("stiffness")) {
@@ -138,6 +171,179 @@ bool add_joint_from_entry(const nlohmann::json& j,
             joint->setStiffness(j["stiffness"].get<double>());
         }
         world.addJoint(joint);
+    }
+    else if (type == "angular_velocity_drive") {
+        int idA = j["body_a"];
+        int idB = j["body_b"];
+        auto ax = j["axis"];
+        Eigen::Vector3d axis(ax[0], ax[1], ax[2]);
+
+        const auto bodyA = find_body_by_id(idA);
+        const auto bodyB = find_body_by_id(idB);
+
+        if (!bodyB) {
+            std::cout << "Ignoring angular_velocity_drive with invalid body_b id" << std::endl;
+            return false;
+        }
+
+        const double target = j.value("target_velocity_radps", 0.0);
+        const double kv = j.value("kv", j.value("stiffness", 100.0));
+        const double max_torque = j.value("max_torque", j.value("max_torque_nm", 0.0));
+        const double delay = j.value("delay", j.value("delay_radps", 0.0));
+        const double delay_tau = j.value("delay_tau", j.value("delay_seconds", 0.0));
+
+        auto drive = std::make_shared<NexDynIPC::Control::VelocityDriveForm>(
+            bodyA, bodyB, axis, kv, target);
+        drive->setMaxTorque(max_torque);
+        drive->setDelay(delay);
+        drive->setDelayTau(delay_tau);
+        drive->updateGlobalIndices(world.bodies);
+        world.addForm(drive);
+    }
+    else if (type == "linear_velocity_drive") {
+        int idA = j["body_a"];
+        int idB = j["body_b"];
+        auto ax = j["axis"];
+        Eigen::Vector3d axis(ax[0], ax[1], ax[2]);
+
+        const auto bodyA = find_body_by_id(idA);
+        const auto bodyB = find_body_by_id(idB);
+        if (!bodyB) {
+            std::cout << "Ignoring linear_velocity_drive with invalid body_b id" << std::endl;
+            return false;
+        }
+
+        const double target = j.value("target_velocity_mps", j.value("target_velocity", 0.0));
+        const double kv = j.value("kv", j.value("stiffness", 100.0));
+        const double max_force = j.value("max_force", j.value("max_force_n", 0.0));
+        const double delay = j.value("delay", j.value("delay_mps", 0.0));
+        const double delay_tau = j.value("delay_tau", j.value("delay_seconds", 0.0));
+
+        auto drive = std::make_shared<NexDynIPC::Control::LinearVelocityDriveForm>(
+            bodyA, bodyB, axis, kv, target);
+        drive->setMaxForce(max_force);
+        drive->setDelay(delay);
+        drive->setDelayTau(delay_tau);
+        drive->updateGlobalIndices(world.bodies);
+        world.addForm(drive);
+    }
+    else if (type == "position_drive") {
+        int idA = j["body_a"];
+        int idB = j["body_b"];
+        auto ax = j["axis"];
+        Eigen::Vector3d axis(ax[0], ax[1], ax[2]);
+
+        const auto bodyA = find_body_by_id(idA);
+        const auto bodyB = find_body_by_id(idB);
+        if (!bodyB) {
+            std::cout << "Ignoring position_drive with invalid body_b id" << std::endl;
+            return false;
+        }
+
+        const double target = j.value("target_position_m", j.value("target_position", 0.0));
+        const double kp = j.value("kp", j.value("stiffness", 100.0));
+        const double max_force = j.value("max_force", j.value("max_force_n", 0.0));
+        const double deadzone = j.value("deadzone", j.value("deadzone_m", 0.0));
+
+        auto drive = std::make_shared<NexDynIPC::Control::PositionDriveForm>(
+            bodyA, bodyB, axis, kp, target);
+        drive->setMaxForce(max_force);
+        drive->setDeadzone(deadzone);
+        drive->updateGlobalIndices(world.bodies);
+        world.addForm(drive);
+    }
+    else if (type == "force_drive") {
+        int id = j.value("body", j.value("body_b", -1));
+        const auto body = find_body_by_id(id);
+        if (!body) {
+            std::cout << "Ignoring force_drive with invalid body id" << std::endl;
+            return false;
+        }
+
+        Eigen::Vector3d force = Eigen::Vector3d::Zero();
+        if (j.contains("force")) {
+            auto fv = j["force"];
+            force = Eigen::Vector3d(fv[0], fv[1], fv[2]);
+        } else if (j.contains("axis")) {
+            auto ax = j["axis"];
+            Eigen::Vector3d axis(ax[0], ax[1], ax[2]);
+            const double force_n = j.value("force_n", j.value("force_magnitude", 0.0));
+            force = axis.normalized() * force_n;
+        }
+
+        Eigen::Vector3d torque = Eigen::Vector3d::Zero();
+        if (j.contains("torque")) {
+            auto tv = j["torque"];
+            torque = Eigen::Vector3d(tv[0], tv[1], tv[2]);
+        }
+
+        auto drive = std::make_shared<NexDynIPC::Control::ForceDriveForm>(body, force, torque);
+        drive->updateGlobalIndices(world.bodies);
+        world.addForm(drive);
+    }
+    else if (type == "angle_limit") {
+        int idA = j["body_a"];
+        int idB = j["body_b"];
+        auto ax = j["axis"];
+        Eigen::Vector3d axis(ax[0], ax[1], ax[2]);
+
+        if (!find_body_by_id(idA) || !find_body_by_id(idB)) {
+            std::cout << "Ignoring angle_limit with invalid body id" << std::endl;
+            return false;
+        }
+
+        const double min_deg = j.value("min_angle_deg", -180.0);
+        const double max_deg = j.value("max_angle_deg", 180.0);
+        const double stiffness = j.value("stiffness", 1e5);
+
+        auto limit_joint = std::make_shared<NexDynIPC::Dynamics::AngleLimitJoint>(
+            idA,
+            idB,
+            axis,
+            min_deg * std::numbers::pi / 180.0,
+            max_deg * std::numbers::pi / 180.0);
+        limit_joint->setStiffness(stiffness);
+        world.addJoint(limit_joint);
+    }
+    else if (type == "distance_limit" || type == "distance_limits") {
+        int idA = j.value("body_a", -1);
+        int idB = j.value("body_b", -1);
+
+        if (!find_body_by_id(idA) || !find_body_by_id(idB)) {
+            std::cout << "Ignoring distance_limit with invalid body id" << std::endl;
+            return false;
+        }
+
+        const double min_d = j.value("min_distance_m", j.value("min_translation_m", 0.0));
+        const double max_d = j.value("max_distance_m", j.value("max_translation_m", min_d));
+        const double stiffness = j.value("stiffness", 1e5);
+
+        auto limit_joint = std::make_shared<NexDynIPC::Dynamics::DistanceLimitJoint>(
+            idA,
+            idB,
+            min_d,
+            max_d);
+        limit_joint->setStiffness(stiffness);
+        world.addJoint(limit_joint);
+    }
+    else if (type == "damped_spring") {
+        int idA = j.value("body_a", -1);
+        int idB = j.value("body_b", -1);
+
+        const auto bodyA = find_body_by_id(idA);
+        const auto bodyB = find_body_by_id(idB);
+        if (!bodyA || !bodyB) {
+            std::cout << "Ignoring damped_spring with invalid body id" << std::endl;
+            return false;
+        }
+
+        const double rest = j.value("rest_length_m", j.value("rest_length", 0.0));
+        const double k = j.value("stiffness_npm", j.value("stiffness", 0.0));
+        const double c = j.value("damping_nspm", j.value("damping", 0.0));
+
+        auto spring = std::make_shared<NexDynIPC::Control::DampedSpringForm>(bodyA, bodyB, rest, k, c);
+        spring->updateGlobalIndices(world.bodies);
+        world.addForm(spring);
     }
     else {
         std::cout << "Ignoring unsupported constraint type: " << type << std::endl;
@@ -238,14 +444,14 @@ void SceneLoader::load(const std::string& filename, Dynamics::World& world) {
         link2->id = 2;
         world.addBody(link2);
 
-        auto joint1 = std::make_shared<Dynamics::RevoluteJoint>(
+        auto joint1 = std::make_shared<Dynamics::HingeJoint>(
             anchor->id, link1->id,
             Eigen::Vector3d(0, 0, 0), Eigen::Vector3d(-0.5, 0, 0),
             Eigen::Vector3d(0, 0, 1), Eigen::Vector3d(0, 0, 1)
         );
         world.addJoint(joint1);
 
-        auto joint2 = std::make_shared<Dynamics::RevoluteJoint>(
+        auto joint2 = std::make_shared<Dynamics::HingeJoint>(
             link1->id, link2->id,
             Eigen::Vector3d(0.5, 0, 0), Eigen::Vector3d(-0.5, 0, 0),
             Eigen::Vector3d(0, 0, 1), Eigen::Vector3d(0, 0, 1)
@@ -305,6 +511,10 @@ void SceneLoader::load(const std::string& filename, Dynamics::World& world, Simu
             if (s.contains("alm_dual_tolerance")) config.alm_dual_tolerance = s["alm_dual_tolerance"].get<double>();
             if (s.contains("alm_hardening_trigger")) config.alm_hardening_trigger = s["alm_hardening_trigger"].get<double>();
             if (s.contains("alm_hardening_ratio")) config.alm_hardening_ratio = s["alm_hardening_ratio"].get<double>();
+            if (s.contains("kpi_gate_enabled")) config.kpi_gate_enabled = s["kpi_gate_enabled"].get<bool>();
+            if (s.contains("kpi_v_w_max")) config.kpi_v_w_max = s["kpi_v_w_max"].get<double>();
+            if (s.contains("kpi_t_sat_max")) config.kpi_t_sat_max = s["kpi_t_sat_max"].get<double>();
+            if (s.contains("kpi_r_dual_max")) config.kpi_r_dual_max = s["kpi_r_dual_max"].get<double>();
             
             std::cout << "Applied settings from JSON:" << std::endl;
             std::cout << "  dt=" << config.dt 

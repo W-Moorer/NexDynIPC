@@ -9,7 +9,9 @@
 
 #include "NexDynIPC/Dynamics/Joints/Joint.h"
 #include "NexDynIPC/Dynamics/Joints/FixedJoint.h"
-#include "NexDynIPC/Dynamics/Joints/RevoluteJoint.h"
+#include "NexDynIPC/Dynamics/Joints/HingeJoint.h"
+#include "NexDynIPC/Dynamics/Joints/AngleLimitJoint.h"
+#include "NexDynIPC/Dynamics/Joints/DistanceLimitJoint.h"
 #include "NexDynIPC/Dynamics/Joints/PrismaticJoint.h"
 #include "NexDynIPC/Dynamics/Joints/SphericalJoint.h"
 #include "NexDynIPC/Dynamics/Joints/CylindricalJoint.h"
@@ -23,7 +25,7 @@ using Catch::Matchers::WithinRel;
  *
  * 测试覆盖：
  * - FixedJoint（固定关节）: 6 DOF约束
- * - RevoluteJoint（旋转关节）: 1 DOF旋转
+ * - HingeJoint（铰链关节）: 1 DOF旋转
  * - PrismaticJoint（棱柱关节）: 1 DOF平移
  * - SphericalJoint（球关节）: 3 DOF旋转
  * - CylindricalJoint（圆柱关节）: 2 DOF（1旋转+1平移）
@@ -166,17 +168,17 @@ TEST_CASE("FixedJoint ALM methods", "[dynamics][joint][fixed]")
 }
 
 // =============================================================================
-// RevoluteJoint Tests
+// HingeJoint Tests
 // =============================================================================
 
-TEST_CASE("RevoluteJoint basic construction", "[dynamics][joint][revolute]")
+TEST_CASE("HingeJoint basic construction", "[dynamics][joint][hinge]")
 {
     Eigen::Vector3d anchorA(0.0, 0.0, 0.0);
     Eigen::Vector3d anchorB(0.0, 0.0, 0.0);
     Eigen::Vector3d axisA(0.0, 0.0, 1.0);
     Eigen::Vector3d axisB(0.0, 0.0, 1.0);
 
-    RevoluteJoint joint(0, 1, anchorA, anchorB, axisA, axisB);
+    HingeJoint joint(0, 1, anchorA, anchorB, axisA, axisB);
 
     SECTION("Construction parameters")
     {
@@ -186,14 +188,14 @@ TEST_CASE("RevoluteJoint basic construction", "[dynamics][joint][revolute]")
     }
 }
 
-TEST_CASE("RevoluteJoint constraint - aligned axes", "[dynamics][joint][revolute]")
+TEST_CASE("HingeJoint constraint - aligned axes", "[dynamics][joint][hinge]")
 {
     Eigen::Vector3d anchorA(0.0, 0.0, 0.0);
     Eigen::Vector3d anchorB(0.0, 0.0, 0.0);
     Eigen::Vector3d axisA(0.0, 0.0, 1.0);
     Eigen::Vector3d axisB(0.0, 0.0, 1.0);
 
-    RevoluteJoint joint(0, 1, anchorA, anchorB, axisA, axisB);
+    HingeJoint joint(0, 1, anchorA, anchorB, axisA, axisB);
 
     // 两个刚体重合，旋转轴对齐
     Eigen::Vector3d posA(0.0, 0.0, 0.0);
@@ -213,14 +215,14 @@ TEST_CASE("RevoluteJoint constraint - aligned axes", "[dynamics][joint][revolute
     }
 }
 
-TEST_CASE("RevoluteJoint constraint - position offset", "[dynamics][joint][revolute]")
+TEST_CASE("HingeJoint constraint - position offset", "[dynamics][joint][hinge]")
 {
     Eigen::Vector3d anchorA(0.0, 0.0, 0.0);
     Eigen::Vector3d anchorB(0.0, 0.0, 0.0);
     Eigen::Vector3d axisA(0.0, 0.0, 1.0);
     Eigen::Vector3d axisB(0.0, 0.0, 1.0);
 
-    RevoluteJoint joint(0, 1, anchorA, anchorB, axisA, axisB);
+    HingeJoint joint(0, 1, anchorA, anchorB, axisA, axisB);
 
     // 刚体B相对于A有位置偏移
     Eigen::Vector3d posA(0.0, 0.0, 0.0);
@@ -239,6 +241,74 @@ TEST_CASE("RevoluteJoint constraint - position offset", "[dynamics][joint][revol
         // Position constraints should be non-zero
         REQUIRE(C.head<3>().norm() > 0.5);
     }
+}
+
+TEST_CASE("AngleLimitJoint basic construction", "[dynamics][joint][angle_limit]")
+{
+    AngleLimitJoint joint(0, 1, Eigen::Vector3d::UnitZ(), -0.2, 0.2);
+    REQUIRE(joint.dim() == 2);
+    REQUIRE(joint.getBodyAId() == 0);
+    REQUIRE(joint.getBodyBId() == 1);
+}
+
+TEST_CASE("AngleLimitJoint projected ALM update", "[dynamics][joint][angle_limit]")
+{
+    AngleLimitJoint joint(0, 1, Eigen::Vector3d::UnitZ(), -0.2, 0.2);
+    joint.setStiffness(1000.0);
+
+    const Eigen::Vector3d posA = Eigen::Vector3d::Zero();
+    const Eigen::Vector3d posB = Eigen::Vector3d::Zero();
+    const Eigen::Quaterniond qA = Eigen::Quaterniond::Identity();
+    const Eigen::Quaterniond qB = Eigen::Quaterniond::Identity();
+    joint.updateState(0, 6, posA, qA, posB, qB);
+
+    Eigen::VectorXd x = Eigen::VectorXd::Zero(12);
+    x(6 + 3 + 2) = 0.5; // bodyB z-rotation increment => upper bound violation
+
+    Eigen::VectorXd C;
+    joint.computeC(x, C);
+    REQUIRE(C(1) > 0.0);
+
+    const double e_before = joint.value(x);
+    joint.updateLambda(x);
+    const double e_after = joint.value(x);
+
+    REQUIRE(e_after >= e_before);
+}
+
+TEST_CASE("DistanceLimitJoint basic construction", "[dynamics][joint][distance_limit]")
+{
+    DistanceLimitJoint joint(0, 1, 0.5, 1.5);
+    REQUIRE(joint.dim() == 2);
+    REQUIRE(joint.getBodyAId() == 0);
+    REQUIRE(joint.getBodyBId() == 1);
+    REQUIRE_THAT(joint.getMinDistance(), WithinAbs(0.5, 1e-12));
+    REQUIRE_THAT(joint.getMaxDistance(), WithinAbs(1.5, 1e-12));
+}
+
+TEST_CASE("DistanceLimitJoint projected ALM update", "[dynamics][joint][distance_limit]")
+{
+    DistanceLimitJoint joint(0, 1, 0.5, 1.0);
+    joint.setStiffness(1000.0);
+
+    const Eigen::Vector3d posA = Eigen::Vector3d::Zero();
+    const Eigen::Vector3d posB = Eigen::Vector3d::Zero();
+    const Eigen::Quaterniond qA = Eigen::Quaterniond::Identity();
+    const Eigen::Quaterniond qB = Eigen::Quaterniond::Identity();
+    joint.updateState(0, 6, posA, qA, posB, qB);
+
+    Eigen::VectorXd x = Eigen::VectorXd::Zero(12);
+    x(6) = 2.0; // bodyB x-position => distance 2.0 > max 1.0
+
+    Eigen::VectorXd C;
+    joint.computeC(x, C);
+    REQUIRE(C(1) > 0.0);
+
+    const double e_before = joint.value(x);
+    joint.updateLambda(x);
+    const double e_after = joint.value(x);
+
+    REQUIRE(e_after >= e_before);
 }
 
 // =============================================================================

@@ -47,6 +47,12 @@ public:
     void setALMHardeningTrigger(double trigger) { alm_hardening_trigger_ = std::max(1.0, trigger); }
     void setALMHardeningRatio(double ratio) { alm_hardening_ratio_ = std::max(1.0, ratio); }
 
+    // Last-step diagnostics / KPI
+    double lastAngularVelocityError() const { return last_angular_velocity_error_; }
+    double lastTorqueSaturationRatio() const { return last_torque_saturation_ratio_; }
+    double lastDualResidual() const { return last_dual_residual_; }
+    double lastMaxConstraintViolation() const { return last_max_constraint_violation_; }
+
 private:
     Math::NewtonSolver solver_;
     std::shared_ptr<TimeIntegration::ImplicitTimeIntegrator> integrator_;
@@ -69,6 +75,12 @@ private:
     double alm_dual_tolerance_ = 1e-3;
     double alm_hardening_trigger_ = 2.0;
     double alm_hardening_ratio_ = 2.0;
+
+    // Last-step KPI cache
+    double last_angular_velocity_error_ = 0.0;
+    double last_torque_saturation_ratio_ = 0.0;
+    double last_dual_residual_ = 0.0;
+    double last_max_constraint_violation_ = 0.0;
     
     void initializeAdaptiveBarrier(World& world);
     double computeMaxStep(World& world, double dt);

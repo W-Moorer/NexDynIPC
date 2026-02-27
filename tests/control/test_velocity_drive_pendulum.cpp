@@ -4,7 +4,7 @@
 #include "NexDynIPC/Control/VelocityDriveForm.h"
 #include "NexDynIPC/Control/ExternalForceForm.h"
 #include "NexDynIPC/Dynamics/RigidBody.h"
-#include "NexDynIPC/Dynamics/Joints/RevoluteJoint.h"
+#include "NexDynIPC/Dynamics/Joints/HingeJoint.h"
 #include "NexDynIPC/Dynamics/World.h"
 
 #include <Eigen/Core>
@@ -50,7 +50,7 @@ TEST_CASE("VelocityDriveForm - Zero-gravity pendulum with velocity drive", "[vel
 
     // 创建旋转关节（连接世界和单摆）
     // 关节位置在原点，旋转轴为Z轴
-    auto hinge = std::make_shared<RevoluteJoint>(
+    auto hinge = std::make_shared<HingeJoint>(
         -1, 0,  // bodyA = -1 (世界), bodyB = 0 (单摆)
         Eigen::Vector3d::Zero(),  // 世界坐标系中的锚点
         Eigen::Vector3d::Zero(),  // 单摆坐标系中的锚点（质心）
@@ -452,6 +452,84 @@ TEST_CASE("VelocityDriveForm - Form interface compliance", "[velocity_drive][int
 
         std::cout << "==========================\n" << std::endl;
     }
+}
+
+TEST_CASE("VelocityDriveForm - Saturation and delay behavior", "[velocity_drive][saturation]") {
+    auto pendulum = std::make_shared<RigidBody>();
+    pendulum->id = 0;
+    pendulum->mass = 1.0;
+
+    auto world = std::make_shared<World>();
+    world->addBody(pendulum);
+
+    VelocityDriveForm velocity_drive(
+        nullptr,
+        pendulum,
+        Eigen::Vector3d(0, 0, 1),
+        100.0,
+        1.0
+    );
+    velocity_drive.updateGlobalIndices(world->bodies);
+    velocity_drive.setTimeStep(0.01);
+    velocity_drive.setMaxTorque(20.0);
+    velocity_drive.setDelay(0.5);
+
+    Eigen::VectorXd x(6);
+    x.setZero();
+
+    // 目标误差=1rad/s，死区0.5后有效误差=0.5，原始力矩=50
+    // C1平滑饱和：tau = tau_max * tanh(raw/tau_max)
+    const double torque_saturated = velocity_drive.getDriveTorque(x);
+    const double expected_pos = 20.0 * std::tanh(50.0 / 20.0);
+    REQUIRE(torque_saturated == Approx(expected_pos));
+    REQUIRE(std::abs(torque_saturated) < 20.0);
+
+    velocity_drive.setTargetVelocity(0.4);
+    // 误差在死区内，驱动力矩应为0
+    const double torque_deadzone = velocity_drive.getDriveTorque(x);
+    REQUIRE(torque_deadzone == Approx(0.0).margin(1e-12));
+
+    velocity_drive.setTargetVelocity(-1.0);
+    // 负向对称平滑饱和
+    const double torque_negative = velocity_drive.getDriveTorque(x);
+    const double expected_neg = -20.0 * std::tanh(50.0 / 20.0);
+    REQUIRE(torque_negative == Approx(expected_neg));
+    REQUIRE(std::abs(torque_negative) < 20.0);
+}
+
+TEST_CASE("VelocityDriveForm - Delay tau target filtering", "[velocity_drive][delay_tau]") {
+    auto pendulum = std::make_shared<RigidBody>();
+    pendulum->id = 0;
+    pendulum->mass = 1.0;
+
+    auto world = std::make_shared<World>();
+    world->addBody(pendulum);
+
+    VelocityDriveForm velocity_drive(
+        nullptr,
+        pendulum,
+        Eigen::Vector3d(0, 0, 1),
+        10.0,
+        0.0
+    );
+    velocity_drive.updateGlobalIndices(world->bodies);
+    velocity_drive.setTimeStep(0.01);
+    velocity_drive.setDelayTau(0.1);
+
+    velocity_drive.advanceControlState();
+    REQUIRE(velocity_drive.getEffectiveTargetVelocity() == Approx(0.0));
+
+    velocity_drive.setTargetVelocity(1.0);
+    velocity_drive.advanceControlState();
+    const double step1 = velocity_drive.getEffectiveTargetVelocity();
+
+    velocity_drive.advanceControlState();
+    const double step2 = velocity_drive.getEffectiveTargetVelocity();
+
+    REQUIRE(step1 > 0.0);
+    REQUIRE(step1 < 1.0);
+    REQUIRE(step2 > step1);
+    REQUIRE(step2 < 1.0);
 }
 
 /**

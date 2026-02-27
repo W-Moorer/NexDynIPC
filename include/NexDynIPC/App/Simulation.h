@@ -29,6 +29,12 @@ struct SimulationConfig {
     double alm_dual_tolerance = 1e-3;
     double alm_hardening_trigger = 2.0;
     double alm_hardening_ratio = 2.0;
+
+    // KPI gate controls (disabled by default for backward compatibility)
+    bool kpi_gate_enabled = false;
+    double kpi_v_w_max = 0.2;
+    double kpi_t_sat_max = 0.01;
+    double kpi_r_dual_max = 1e-3;
 };
 
 class Simulation {

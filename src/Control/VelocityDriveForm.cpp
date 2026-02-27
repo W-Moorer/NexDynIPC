@@ -1,6 +1,7 @@
 #include "NexDynIPC/Control/VelocityDriveForm.h"
 #include <algorithm>
 #include <cmath>
+#include <stdexcept>
 
 namespace NexDynIPC::Control {
 
@@ -15,9 +16,14 @@ VelocityDriveForm::VelocityDriveForm(std::shared_ptr<Dynamics::RigidBody> bodyA,
       kv_(kv),
       v_target_(v_target),
       dt_(0.01),  // 默认时间步长
+    max_torque_(std::numeric_limits<double>::infinity()),
+    delay_radps_(0.0),
+    delay_tau_seconds_(0.0),
       global_idx_A_(-1),
       global_idx_B_(-1),
-      has_prev_state_(false) {
+    has_prev_state_(false),
+    filter_initialized_(false),
+    filtered_target_velocity_(v_target) {
     // 子刚体必须非空
     if (!bodyB_) {
         throw std::invalid_argument("VelocityDriveForm: bodyB cannot be null");
@@ -30,6 +36,51 @@ void VelocityDriveForm::setTargetVelocity(double v_target) {
 
 void VelocityDriveForm::setVelocityGain(double kv) {
     kv_ = kv;
+}
+
+void VelocityDriveForm::setMaxTorque(double max_torque) {
+    if (max_torque <= 0.0) {
+        max_torque_ = std::numeric_limits<double>::infinity();
+        return;
+    }
+    max_torque_ = max_torque;
+}
+
+void VelocityDriveForm::setDelay(double delay_radps) {
+    delay_radps_ = std::max(0.0, delay_radps);
+}
+
+void VelocityDriveForm::setDelayTau(double delay_tau_seconds) {
+    delay_tau_seconds_ = std::max(0.0, delay_tau_seconds);
+    if (delay_tau_seconds_ <= 0.0) {
+        filter_initialized_ = false;
+        filtered_target_velocity_ = v_target_;
+    }
+}
+
+void VelocityDriveForm::advanceControlState() {
+    if (delay_tau_seconds_ <= 0.0) {
+        filtered_target_velocity_ = v_target_;
+        filter_initialized_ = false;
+        return;
+    }
+
+    if (!filter_initialized_) {
+        filtered_target_velocity_ = v_target_;
+        filter_initialized_ = true;
+        return;
+    }
+
+    if (dt_ <= 0.0) {
+        return;
+    }
+
+    const double alpha = dt_ / (delay_tau_seconds_ + dt_);
+    filtered_target_velocity_ += alpha * (v_target_ - filtered_target_velocity_);
+}
+
+double VelocityDriveForm::getEffectiveTargetVelocity() const {
+    return effectiveTargetVelocity();
 }
 
 void VelocityDriveForm::updateGlobalIndices(const std::vector<std::shared_ptr<Dynamics::RigidBody>>& bodies) {
@@ -59,8 +110,8 @@ int VelocityDriveForm::findBodyIndex(const std::vector<std::shared_ptr<Dynamics:
 }
 
 double VelocityDriveForm::getVelocityError(const Eigen::VectorXd& x) const {
-    double v_current = computeJointVelocity(x);
-    return v_target_ - v_current;
+    const double v_current = computeJointVelocity(x);
+    return effectiveTargetVelocity() - v_current;
 }
 
 double VelocityDriveForm::getCurrentVelocity(const Eigen::VectorXd& x) const {
@@ -68,8 +119,69 @@ double VelocityDriveForm::getCurrentVelocity(const Eigen::VectorXd& x) const {
 }
 
 double VelocityDriveForm::getDriveTorque(const Eigen::VectorXd& x) const {
-    double v_error = getVelocityError(x);
-    return kv_ * v_error;  // tau = kv * (v_target - v)
+    const double v_error = getVelocityError(x);
+    const double v_error_eff = applyDelayDeadzone(v_error);
+    return computeSaturatedTorque(v_error_eff);
+}
+
+double VelocityDriveForm::getCurrentVelocityFromBodies() const {
+    Eigen::Vector3d omega_A = Eigen::Vector3d::Zero();
+    Eigen::Vector3d omega_B = Eigen::Vector3d::Zero();
+
+    if (bodyA_) {
+        omega_A = bodyA_->angular_velocity;
+    }
+    if (bodyB_) {
+        omega_B = bodyB_->angular_velocity;
+    }
+
+    const Eigen::Vector3d omega_relative = omega_B - omega_A;
+    return omega_relative.dot(axis_);
+}
+
+double VelocityDriveForm::getVelocityErrorFromBodies() const {
+    return effectiveTargetVelocity() - getCurrentVelocityFromBodies();
+}
+
+double VelocityDriveForm::getDriveTorqueFromBodies() const {
+    const double v_error = getVelocityErrorFromBodies();
+    const double v_error_eff = applyDelayDeadzone(v_error);
+    return computeSaturatedTorque(v_error_eff);
+}
+
+bool VelocityDriveForm::isTorqueSaturatedFromBodies() const {
+    if (!std::isfinite(max_torque_)) {
+        return false;
+    }
+    const double v_error = getVelocityErrorFromBodies();
+    const double v_error_eff = applyDelayDeadzone(v_error);
+    const double torque = computeSaturatedTorque(v_error_eff);
+    return std::abs(torque) >= 0.98 * max_torque_;
+}
+
+double VelocityDriveForm::applyDelayDeadzone(double velocity_error) const {
+    if (delay_radps_ <= 0.0) {
+        return velocity_error;
+    }
+    if (velocity_error > delay_radps_) {
+        return velocity_error - delay_radps_;
+    }
+    if (velocity_error < -delay_radps_) {
+        return velocity_error + delay_radps_;
+    }
+    return 0.0;
+}
+
+double VelocityDriveForm::computeSaturatedTorque(double effective_velocity_error) const {
+    const double raw_torque = kv_ * effective_velocity_error;
+    if (!std::isfinite(max_torque_)) {
+        return raw_torque;
+    }
+    if (max_torque_ <= 0.0) {
+        return raw_torque;
+    }
+    const double s = raw_torque / max_torque_;
+    return max_torque_ * std::tanh(s);
 }
 
 Eigen::Vector3d VelocityDriveForm::extractRotationVector(const Eigen::VectorXd& x, int global_idx) const {
@@ -129,9 +241,20 @@ double VelocityDriveForm::computeJointVelocity(const Eigen::VectorXd& x) const {
  * 这是二次势能，当 v = v_target 时能量最小（为零）
  */
 double VelocityDriveForm::value(const Eigen::VectorXd& x) const {
-    double v = computeJointVelocity(x);
-    double dv = v - v_target_;
-    return 0.5 * kv_ * dv * dv;
+    const double v = computeJointVelocity(x);
+    const double v_error = effectiveTargetVelocity() - v;
+    const double v_error_eff = applyDelayDeadzone(v_error);
+
+    if (!std::isfinite(max_torque_)) {
+        return 0.5 * kv_ * v_error_eff * v_error_eff;
+    }
+
+    if (kv_ <= 0.0 || max_torque_ <= 0.0) {
+        return 0.0;
+    }
+
+    const double s = (kv_ * v_error_eff) / max_torque_;
+    return (max_torque_ * max_torque_ / kv_) * std::log(std::cosh(s));
 }
 
 /**
@@ -159,12 +282,14 @@ double VelocityDriveForm::value(const Eigen::VectorXd& x) const {
  *   - bodyB的梯度为正（主动力）
  */
 void VelocityDriveForm::gradient(const Eigen::VectorXd& x, Eigen::VectorXd& grad) const {
-    // 计算当前关节速度
-    double v = computeJointVelocity(x);
-    double dv = v - v_target_;
+    const double v = computeJointVelocity(x);
+    const double v_error = effectiveTargetVelocity() - v;
+    const double v_error_eff = applyDelayDeadzone(v_error);
+    const double torque = computeSaturatedTorque(v_error_eff);
 
-    // dE/dv = kv * (v - v_target)
-    double dE_dv = kv_ * dv;
+    // dE/dv，其中 v_error = v_target - v
+    // dE/dv = -tau
+    const double dE_dv = -torque;
 
     // 检查时间步长有效性
     if (dt_ <= 0) {
@@ -175,7 +300,7 @@ void VelocityDriveForm::gradient(const Eigen::VectorXd& x, Eigen::VectorXd& grad
     double dv_dq = 1.0 / dt_;
 
     // dE/dq = dE/dv * dv/dq
-    double dE_dq = dE_dv * dv_dq;
+    const double dE_dq = dE_dv * dv_dq;
 
     // 将梯度应用到状态向量
     // 注意：这里只应用到旋转自由度（索引+3）
@@ -221,8 +346,25 @@ void VelocityDriveForm::hessian(const Eigen::VectorXd& x,
         return;
     }
 
-    // H = kv / dt^2
     double H = kv_ / (dt_ * dt_);
+
+    if (std::isfinite(max_torque_) && kv_ > 0.0 && max_torque_ > 0.0) {
+        const double v = computeJointVelocity(x);
+        const double v_error = effectiveTargetVelocity() - v;
+        if (std::abs(v_error) <= delay_radps_) {
+            H = 0.0;
+        } else {
+            const double v_error_eff = applyDelayDeadzone(v_error);
+            const double s = (kv_ * v_error_eff) / max_torque_;
+            const double t = std::tanh(s);
+            const double sech2 = 1.0 - t * t;
+            H = (kv_ * sech2) / (dt_ * dt_);
+        }
+    }
+
+    if (H == 0.0) {
+        return;
+    }
 
     // 对bodyB的Hessian贡献
     if (global_idx_B_ >= 0) {
@@ -260,6 +402,16 @@ void VelocityDriveForm::hessian(const Eigen::VectorXd& x,
 
     // 注意：这里忽略了bodyA和bodyB之间的耦合项
     // 在实际应用中，如果需要更精确的Hessian，应该考虑耦合
+}
+
+double VelocityDriveForm::effectiveTargetVelocity() const {
+    if (delay_tau_seconds_ <= 0.0) {
+        return v_target_;
+    }
+    if (!filter_initialized_) {
+        return v_target_;
+    }
+    return filtered_target_velocity_;
 }
 
 } // namespace NexDynIPC::Control

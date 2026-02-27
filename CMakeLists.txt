@@ -31,7 +31,7 @@ include_directories(${CMAKE_SOURCE_DIR}/include/NexDynIPC/Math/autodiff)
 add_compile_definitions(AUTODIFF_EIGEN_FOUND)
 
 # Collect source files (excluding main.cpp for library)
-file(GLOB_RECURSE LIB_SOURCES "${CMAKE_SOURCE_DIR}/src/*.cpp")
+file(GLOB_RECURSE LIB_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.cpp")
 list(FILTER LIB_SOURCES EXCLUDE REGEX "src/main\\.cpp$")
 message(STATUS "Detected LIB_SOURCES: ${LIB_SOURCES}")
 

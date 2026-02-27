@@ -472,3 +472,176 @@
 - 用统一残差、统一 μ 策略、统一乘子规则保证数学一致性。
 
 这就是“全部内容合并在一起、统一规划处理”的可执行理论方案。
+
+---
+
+## 13) 第一轮落地完成状态（2026-02-27，已验收）
+
+本节记录“第一次更新”后，已在代码中真正落地并通过验证的内容。
+
+### 13.1 已完成实现
+
+1. `joints[]` 与 `constraints[]` 共存解析已落地（SceneLoader）。
+2. Joint/Constraint 去重机制已落地（基于规范化签名，避免重复注入）。
+3. ALM 配置项已从 JSON `settings` 贯通到运行时：
+   - `alm_max_iters`
+   - `alm_constraint_tolerance`
+   - `alm_dual_tolerance`
+   - `alm_hardening_trigger`
+   - `alm_hardening_ratio`
+4. `Simulation` 已将上述 ALM 参数传递到 `IPCSolver`。
+5. 第一轮迁移测试已补齐：
+   - SceneLoader 共存/去重测试
+   - ALM 参数与输出默认值测试
+
+### 13.2 本轮验收结果
+
+回归结果（Debug）：
+
+1. 全量测试：`111/111` 通过。
+2. 关键迁移与故障回归测试均通过：
+   - `SceneLoader supports joints and constraints coexistence`
+   - `SceneLoader applies ALM and output defaults`
+   - `Edge-Vertex TOI computation`
+   - `CylindricalJoint constraint - translation and rotation along axis`
+
+结论：第一轮“共存接入 + ALM 配置贯通 + 回归守护”已可视为完成。
+
+---
+
+## 14) 当前仍未完成项（进入第二轮）
+
+尽管第一轮完成，以下目标仍属于“未落地实现”：
+
+1. 约束原语层（`ConstraintPrimitive`）尚未代码化。
+2. `LegacyJointAdapter / ConstraintSet / CompositeJoint` 尚未建立统一装配链。
+3. `constraints[]` 当前仍主要复用 joint 映射，尚未支持 limit/drive/soft 的独立求解语义。
+4. 统一冲突检测（DOF 重复锁定、目标矛盾）尚未实现。
+5. 统一 KPI 输出（`V_pos/V_ang/V_v/V_w/R_dual/F_sat/T_sat`）尚未进入 CSV/CI 门禁。
+
+---
+
+## 15) 第二轮执行清单（建议直接按此推进）
+
+### 15.1 目标
+
+实现“统一约束装配最小闭环（MVP）”：
+
+1. 建立 `ConstraintPrimitive` 抽象接口（含 `violation()`）。
+2. 建立 `LegacyJointAdapter`，将现有 Joint 统一适配到约束集合。
+3. 建立 `ConstraintSet` 与分组统计（`eq/ineq/drive/soft`）。
+4. 在 `constraints[]` 中新增至少两类可生效约束：
+   - `angle_limit`
+   - `angular_velocity_drive`（先不做饱和也可）
+5. 输出最小 KPI：`max_constraint_violation`、`dual_residual`、`alm_iters`。
+
+### 15.2 完成判据
+
+1. 旧场景行为不回退（现有测试全绿）。
+2. 新增 `constraints[]` 能独立生效（不依赖重复写 joint）。
+3. 四个基线场景至少有两个能体现“非静态新行为”（建议 motor + hinge）。
+4. 回归脚本可自动对比阈值并给出通过/失败结论。
+
+---
+
+（本文件后续按“已完成/未完成”持续滚动更新，不再只保留理论规划。）
+
+---
+
+## 16) 第二轮落地状态（2026-02-27，已完成最小闭环）
+
+本轮目标是把 `constraints[]` 从“仅概念共存”推进到“新增类型可生效”。
+
+### 16.1 本轮新增实现
+
+1. 新增 `AngleLimitForm`（软限位最小实现）：
+   - 文件：
+     - `include/NexDynIPC/Dynamics/Forms/AngleLimitForm.h`
+     - `src/Dynamics/Forms/AngleLimitForm.cpp`
+   - 功能：在超出 `[min_angle, max_angle]` 时施加二次势能惩罚，输出梯度/Hessian。
+
+2. `SceneLoader` 新增 `constraints[]` 类型映射：
+   - `angular_velocity_drive` → `VelocityDriveForm`
+   - `angle_limit` → `AngleLimitForm`
+
+3. 运行时约束一致性补丁：
+   - `IPCSolver::step()` 每步对 `VelocityDriveForm` 进行：
+     - `setTimeStep(actual_dt)`
+     - `updateGlobalIndices(world.bodies)`
+
+4. 新增 SceneLoader 单元测试：
+   - `SceneLoader loads angular velocity drive constraint into forms`
+   - `SceneLoader loads angle limit constraint into forms`
+
+### 16.2 本轮验收结果
+
+1. 关键回归：6/6 通过（含 SceneLoader 新增测试 + 两项历史故障回归）。
+2. 全量回归：115/115 通过。
+
+结论：第二轮“`constraints[]` 新类型可生效”的最小闭环已完成。
+
+---
+
+## 17) 当前边界（明确未完成，避免误判）
+
+尽管第二轮已完成最小闭环，以下仍属于后续工作：
+
+1. `angular_velocity_drive` 已完成 `max_torque` + `delay(deadzone)` + `delay_tau(一阶滤波)`；仍未做更平滑 C1 饱和过渡。
+2. `angle_limit` 当前为软限位势能，不等式 ALM 投影链路尚未统一。
+3. `LegacyJointAdapter / ConstraintSet / CompositeJoint` 统一装配体系尚未代码化。
+4. 统一冲突检测（重复 DOF 锁定、矛盾目标）尚未落地。
+5. KPI 已完成导出与运行时阈值门禁，尚未接入仓库级 CI 任务编排（如 pipeline 步骤）。
+
+---
+
+## 18) 第三轮建议执行项（直接可开工）
+
+### T3-1 统一装配层
+1. 引入 `ConstraintSet`（分组：`eq/ineq/drive/soft`）。
+2. 引入 `LegacyJointAdapter`（先包现有 `Joint`）。
+
+### T3-2 不等式约束规范化
+1. 为 `angle_limit` 增加不等式 ALM 投影更新（`lambda <- max(0, lambda + mu*g)`）。
+2. 增加对应残差统计与停止准则。
+
+### T3-3 驱动器工程语义补齐
+1. 给 `angular_velocity_drive` 加 `max_torque`（先平滑饱和）。
+2. 加 `delay`（一阶滤波或等效速差平滑）。
+
+### T3-4 验证与门禁
+1. 在四个 JSON 场景中至少两例实现“可观测目标达成”（建议 motor + hinge）。
+2. 导出并校验最小 KPI（至少 `V_ang/V_w/R_dual`）。
+
+---
+
+## 19) 第三轮增量进展（2026-02-27，当日追加）
+
+### 19.1 已落地代码
+
+1. `VelocityDriveForm` 新增参数与行为：
+   - 新增 `max_torque` 参数（支持 `max_torque` / `max_torque_nm`）
+   - 新增 `delay` 参数（速度误差 deadzone，单位 `rad/s`）
+   - 新增 `delay_tau` 参数（目标速度一阶滤波时间常数，单位 `s`）
+   - 驱动力矩采用“先 delay 死区、后扭矩饱和”流程
+2. `SceneLoader` 已将上述参数从 `constraints[].angular_velocity_drive` 映射到运行时表单。
+3. 新增/更新测试：
+   - `SceneLoader loads angular velocity drive constraint into forms`（新增参数断言）
+   - `VelocityDriveForm - Saturation and delay behavior`
+   - `VelocityDriveForm - Delay tau target filtering`
+4. 已接入最小 KPI 导出链路：
+   - `IPCSolver` 每步缓存 `V_w`（角速度误差）/`T_sat`（饱和占比）/`R_dual`/`max_constraint_violation`
+   - `StateExporter` 追加输出 `*_kpi.csv`，列包含：`V_w,T_sat,R_dual,max_constraint_violation`
+5. 已接入运行时 KPI 门禁：
+   - `Simulation` 统计全程 `max(V_w/T_sat/R_dual)`
+   - 当 `kpi_gate_enabled=true` 且任一超阈值（`kpi_v_w_max/kpi_t_sat_max/kpi_r_dual_max`）时，直接失败并抛异常
+
+### 19.2 当日验收
+
+1. 定向测试：3/3 通过（解析 + 饱和/死区 + `delay_tau` 滤波行为）。
+2. 全量回归：115/115 通过。
+
+### 19.3 第三轮剩余重点
+
+1. 将饱和从分段实现升级为更平滑 C1 近似（避免导数突变）。
+2. 把运行时 KPI 门禁接入仓库 CI pipeline（自动拉起场景并据退出码判定）。
+3. `angle_limit` 切换到不等式 ALM 投影链路并补残差闭环。

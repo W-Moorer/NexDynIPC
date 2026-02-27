@@ -2,11 +2,18 @@
 #include "NexDynIPC/Dynamics/Forms/InertiaForm.h"
 #include "NexDynIPC/Dynamics/Forms/GravityForm.h"
 #include "NexDynIPC/Dynamics/Forms/ConstraintForm.h"
-#include "NexDynIPC/Dynamics/Joints/RevoluteJoint.h"
+#include "NexDynIPC/Dynamics/Joints/HingeJoint.h"
 #include "NexDynIPC/Dynamics/Joints/FixedJoint.h"
 #include "NexDynIPC/Dynamics/Joints/SphericalJoint.h"
 #include "NexDynIPC/Dynamics/Joints/PrismaticJoint.h"
 #include "NexDynIPC/Dynamics/Joints/CylindricalJoint.h"
+#include "NexDynIPC/Dynamics/Joints/AngleLimitJoint.h"
+#include "NexDynIPC/Dynamics/Joints/DistanceLimitJoint.h"
+#include "NexDynIPC/Control/VelocityDriveForm.h"
+#include "NexDynIPC/Control/LinearVelocityDriveForm.h"
+#include "NexDynIPC/Control/PositionDriveForm.h"
+#include "NexDynIPC/Control/ForceDriveForm.h"
+#include "NexDynIPC/Control/DampedSpringForm.h"
 #include "NexDynIPC/TimeIntegration/ImplicitEulerIntegrator.h"
 #include "NexDynIPC/Physics/Geometry/MeshShape.h"
 #include <iostream>
@@ -303,12 +310,52 @@ void IPCSolver::step(World& world, double dt) {
         world.forms.push_back(friction_form_);
     }
 
+    for (const auto& form : world.forms) {
+        auto drive = std::dynamic_pointer_cast<NexDynIPC::Control::VelocityDriveForm>(form);
+        if (drive) {
+            drive->setTimeStep(actual_dt);
+            drive->advanceControlState();
+            drive->updateGlobalIndices(world.bodies);
+            continue;
+        }
+
+        auto linear_drive = std::dynamic_pointer_cast<NexDynIPC::Control::LinearVelocityDriveForm>(form);
+        if (linear_drive) {
+            linear_drive->setTimeStep(actual_dt);
+            linear_drive->advanceControlState();
+            linear_drive->updateGlobalIndices(world.bodies);
+            continue;
+        }
+
+        auto position_drive = std::dynamic_pointer_cast<NexDynIPC::Control::PositionDriveForm>(form);
+        if (position_drive) {
+            position_drive->setTimeStep(actual_dt);
+            position_drive->updateGlobalIndices(world.bodies);
+            continue;
+        }
+
+        auto force_drive = std::dynamic_pointer_cast<NexDynIPC::Control::ForceDriveForm>(form);
+        if (force_drive) {
+            force_drive->setTimeStep(actual_dt);
+            force_drive->updateGlobalIndices(world.bodies);
+            continue;
+        }
+
+        auto damped_spring = std::dynamic_pointer_cast<NexDynIPC::Control::DampedSpringForm>(form);
+        if (damped_spring) {
+            damped_spring->updateGlobalIndices(world.bodies);
+        }
+    }
+
+    last_max_constraint_violation_ = 0.0;
+    last_dual_residual_ = 0.0;
+
     for(int alm_iter = 0; alm_iter < alm_max_iters_; ++alm_iter) {
         for (auto& joint : world.joints) {
-            auto revolute = std::dynamic_pointer_cast<NexDynIPC::Dynamics::RevoluteJoint>(joint);
-            if (revolute) {
-                int idA = revolute->getBodyAId();
-                int idB = revolute->getBodyBId();
+            auto hinge = std::dynamic_pointer_cast<NexDynIPC::Dynamics::HingeJoint>(joint);
+            if (hinge) {
+                int idA = hinge->getBodyAId();
+                int idB = hinge->getBodyBId();
                 
                 int idxA = body_id_to_idx[idA];
                 int idxB = body_id_to_idx[idB];
@@ -316,7 +363,7 @@ void IPCSolver::step(World& world, double dt) {
                 Eigen::Quaterniond qA = body_id_to_ptr[idA]->orientation;
                 Eigen::Vector3d pB = body_id_to_ptr[idB]->position;
                 Eigen::Quaterniond qB = body_id_to_ptr[idB]->orientation;
-                revolute->updateState(idxA, idxB, pA, qA, pB, qB);
+                hinge->updateState(idxA, idxB, pA, qA, pB, qB);
                 continue;
             }
 
@@ -374,6 +421,36 @@ void IPCSolver::step(World& world, double dt) {
                 cylindrical->updateState(idxA, idxB, pA, qA, pB, qB);
                 continue;
             }
+
+            auto angle_limit = std::dynamic_pointer_cast<NexDynIPC::Dynamics::AngleLimitJoint>(joint);
+            if (angle_limit) {
+                int idA = angle_limit->getBodyAId();
+                int idB = angle_limit->getBodyBId();
+
+                int idxA = body_id_to_idx[idA];
+                int idxB = body_id_to_idx[idB];
+                Eigen::Vector3d pA = body_id_to_ptr[idA]->position;
+                Eigen::Quaterniond qA = body_id_to_ptr[idA]->orientation;
+                Eigen::Vector3d pB = body_id_to_ptr[idB]->position;
+                Eigen::Quaterniond qB = body_id_to_ptr[idB]->orientation;
+                angle_limit->updateState(idxA, idxB, pA, qA, pB, qB);
+                continue;
+            }
+
+            auto distance_limit = std::dynamic_pointer_cast<NexDynIPC::Dynamics::DistanceLimitJoint>(joint);
+            if (distance_limit) {
+                int idA = distance_limit->getBodyAId();
+                int idB = distance_limit->getBodyBId();
+
+                int idxA = body_id_to_idx[idA];
+                int idxB = body_id_to_idx[idB];
+                Eigen::Vector3d pA = body_id_to_ptr[idA]->position;
+                Eigen::Quaterniond qA = body_id_to_ptr[idA]->orientation;
+                Eigen::Vector3d pB = body_id_to_ptr[idB]->position;
+                Eigen::Quaterniond qB = body_id_to_ptr[idB]->orientation;
+                distance_limit->updateState(idxA, idxB, pA, qA, pB, qB);
+                continue;
+            }
         }
 
         SimulationProblem problem(world, integrator_);
@@ -404,6 +481,9 @@ void IPCSolver::step(World& world, double dt) {
             auto normal_forces = computeNormalForces(world, x_new);
             friction_form_->updateNormalForces(normal_forces);
         }
+
+        last_max_constraint_violation_ = max_constraint_violation;
+        last_dual_residual_ = dual_residual;
 
         if (converged
             && max_constraint_violation <= alm_constraint_tolerance_
@@ -440,6 +520,26 @@ void IPCSolver::step(World& world, double dt) {
 
         idx += 6;
     }
+
+    double max_vw = 0.0;
+    int drive_count = 0;
+    int saturated_count = 0;
+    for (const auto& form : world.forms) {
+        auto drive = std::dynamic_pointer_cast<NexDynIPC::Control::VelocityDriveForm>(form);
+        if (!drive) {
+            continue;
+        }
+        ++drive_count;
+        max_vw = std::max(max_vw, std::abs(drive->getVelocityErrorFromBodies()));
+        if (drive->isTorqueSaturatedFromBodies()) {
+            ++saturated_count;
+        }
+    }
+
+    last_angular_velocity_error_ = max_vw;
+    last_torque_saturation_ratio_ = (drive_count > 0)
+        ? static_cast<double>(saturated_count) / static_cast<double>(drive_count)
+        : 0.0;
     
     // Remove friction form from world forms after step
     if (enable_friction_ && friction_form_) {

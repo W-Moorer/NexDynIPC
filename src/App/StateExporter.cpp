@@ -51,4 +51,28 @@ void StateExporter::exportFrame(const Dynamics::World& world, int frame_idx, dou
     out.close();
 }
 
+void StateExporter::exportKPIFrame(int frame_idx,
+                                   double time,
+                                   double v_w,
+                                   double t_sat,
+                                   double r_dual,
+                                   double max_constraint_violation) {
+    std::string filename = output_dir_ + "/" + output_name_ + "_kpi.csv";
+    std::ofstream out;
+
+    if (frame_idx == 0) {
+        out.open(filename);
+        out << "frame_idx,time,V_w,T_sat,R_dual,max_constraint_violation\n";
+    } else {
+        out.open(filename, std::ios_base::app);
+    }
+
+    out << frame_idx << ","
+        << time << ","
+        << v_w << ","
+        << t_sat << ","
+        << r_dual << ","
+        << max_constraint_violation << "\n";
+}
+
 } // namespace NexDynIPC::App

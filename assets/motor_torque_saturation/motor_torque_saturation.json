@@ -1,6 +1,6 @@
 {
   "case_name": "motor_torque_saturation",
-  "description": "电机驱动与力矩饱和迁移验证基线。当前可运行为fixed+revolute；未来验证角速度驱动C1过渡与饱和。",
+  "description": "电机驱动与力矩饱和迁移验证基线。当前可运行为fixed+hinge；未来验证角速度驱动C1过渡与饱和。",
   "settings": {
     "dt": 0.0005,
     "max_time": 1.5,
@@ -35,7 +35,7 @@
       "stiffness": 10000000.0
     },
     {
-      "type": "revolute",
+      "type": "hinge",
       "body_a": 0,
       "body_b": 1,
       "anchor_a": [0.0, 0.0, 0.0],

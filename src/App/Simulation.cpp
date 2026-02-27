@@ -3,6 +3,8 @@
 #include "NexDynIPC/TimeIntegration/ImplicitTimeIntegrator.h"
 #include <nlohmann/json.hpp>
 #include <iostream>
+#include <algorithm>
+#include <stdexcept>
 
 namespace NexDynIPC::App {
 
@@ -41,9 +43,13 @@ void Simulation::run() {
     // 5. Simulation Loop
     double t = 0.0;
     int frame = 0;
+    double max_v_w = 0.0;
+    double max_t_sat = 0.0;
+    double max_r_dual = 0.0;
     
     // Export initial state
     exporter_->exportFrame(world_, frame++, t);
+    exporter_->exportKPIFrame(0, t, 0.0, 0.0, 0.0, 0.0);
 
     while (t < config_.max_time) {
         std::cout << "Simulating t=" << t << std::endl;
@@ -52,6 +58,33 @@ void Simulation::run() {
         t += config_.dt;
         
         exporter_->exportFrame(world_, frame++, t);
+        exporter_->exportKPIFrame(
+            frame - 1,
+            t,
+            solver_->lastAngularVelocityError(),
+            solver_->lastTorqueSaturationRatio(),
+            solver_->lastDualResidual(),
+            solver_->lastMaxConstraintViolation());
+
+        max_v_w = std::max(max_v_w, solver_->lastAngularVelocityError());
+        max_t_sat = std::max(max_t_sat, solver_->lastTorqueSaturationRatio());
+        max_r_dual = std::max(max_r_dual, solver_->lastDualResidual());
+    }
+
+    if (config_.kpi_gate_enabled) {
+        const bool pass_v_w = max_v_w <= config_.kpi_v_w_max;
+        const bool pass_t_sat = max_t_sat <= config_.kpi_t_sat_max;
+        const bool pass_r_dual = max_r_dual <= config_.kpi_r_dual_max;
+
+        std::cout << "KPI Gate Summary:"
+                  << " max(V_w)=" << max_v_w << " (<= " << config_.kpi_v_w_max << ")"
+                  << " max(T_sat)=" << max_t_sat << " (<= " << config_.kpi_t_sat_max << ")"
+                  << " max(R_dual)=" << max_r_dual << " (<= " << config_.kpi_r_dual_max << ")"
+                  << std::endl;
+
+        if (!(pass_v_w && pass_t_sat && pass_r_dual)) {
+            throw std::runtime_error("KPI gate failed: thresholds exceeded");
+        }
     }
     
     std::cout << "Simulation complete." << std::endl;
