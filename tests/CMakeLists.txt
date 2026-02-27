@@ -24,6 +24,7 @@ add_executable(nexdynipc_tests
     # Physics module tests
     physics/test_ccd.cpp
     physics/test_friction.cpp
+    physics/test_contact_pipeline.cpp
     
     # Dynamics module tests
     dynamics/test_joint.cpp
@@ -47,7 +48,7 @@ target_link_libraries(nexdynipc_tests PRIVATE
 
 # Compiler options
 if(MSVC)
-    target_compile_options(nexdynipc_tests PRIVATE /W4 /permissive-)
+    target_compile_options(nexdynipc_tests PRIVATE /W4 /permissive- /FS)
 else()
     target_compile_options(nexdynipc_tests PRIVATE -Wall -Wextra -Wpedantic)
 endif()

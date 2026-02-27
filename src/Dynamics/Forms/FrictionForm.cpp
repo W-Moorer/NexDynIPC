@@ -138,8 +138,7 @@ Eigen::Vector3d FrictionForm::computeTangentDisplacement(
     
     // Approximate displacement as velocity * dt
     // In a real implementation, you'd integrate this over the timestep
-    double dt = 0.01; // Should be passed from solver
-    return tangent_velocity * dt;
+    return tangent_velocity * dt_;
 }
 
 void FrictionForm::getBodyState(

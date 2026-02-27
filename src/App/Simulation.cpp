@@ -37,6 +37,20 @@ void Simulation::run() {
     solver_->setALMHardeningTrigger(config_.alm_hardening_trigger);
     solver_->setALMHardeningRatio(config_.alm_hardening_ratio);
 
+    solver_->enableAdaptiveBarrier(config_.contact_enabled);
+    solver_->adaptiveBarrier().setDhat(config_.contact_dhat);
+    solver_->enableFriction(config_.contact_friction_enabled);
+    solver_->setFrictionCoefficient(config_.contact_friction_mu);
+
+    solver_->enableCCD(config_.contact_ccd_enabled);
+    solver_->setCCDSafetyFactor(config_.contact_ccd_safety_factor);
+    solver_->setCCDMaxSubsteps(config_.contact_ccd_max_substeps);
+    solver_->setCCDMinStepRatio(config_.contact_ccd_min_step_ratio);
+
+    solver_->enableNewtonFallback(config_.solver_newton_fallback_enabled);
+    solver_->setNewtonFallbackRetries(config_.solver_newton_fallback_retries);
+    solver_->setNewtonFallbackDamping(config_.solver_newton_fallback_damping);
+
     // 4. Create Exporter
     exporter_ = std::make_unique<StateExporter>(config_.output_dir, config_.output_name);
 
@@ -49,7 +63,7 @@ void Simulation::run() {
     
     // Export initial state
     exporter_->exportFrame(world_, frame++, t);
-    exporter_->exportKPIFrame(0, t, 0.0, 0.0, 0.0, 0.0);
+    exporter_->exportKPIFrame(0, t, 0.0, 0.0, 0.0, 0.0, 1.0, 1, 0, 1);
 
     while (t < config_.max_time) {
         std::cout << "Simulating t=" << t << std::endl;
@@ -64,7 +78,11 @@ void Simulation::run() {
             solver_->lastAngularVelocityError(),
             solver_->lastTorqueSaturationRatio(),
             solver_->lastDualResidual(),
-            solver_->lastMaxConstraintViolation());
+            solver_->lastMaxConstraintViolation(),
+            solver_->lastCCDTOIRatio(),
+            solver_->lastCCDSubsteps(),
+            solver_->lastNewtonFallbacks(),
+            solver_->lastSolverConverged() ? 1 : 0);
 
         max_v_w = std::max(max_v_w, solver_->lastAngularVelocityError());
         max_t_sat = std::max(max_t_sat, solver_->lastTorqueSaturationRatio());

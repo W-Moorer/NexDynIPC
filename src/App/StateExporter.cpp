@@ -56,13 +56,17 @@ void StateExporter::exportKPIFrame(int frame_idx,
                                    double v_w,
                                    double t_sat,
                                    double r_dual,
-                                   double max_constraint_violation) {
+                                   double max_constraint_violation,
+                                   double ccd_toi_ratio,
+                                   int ccd_substeps,
+                                   int newton_fallbacks,
+                                   int solver_converged) {
     std::string filename = output_dir_ + "/" + output_name_ + "_kpi.csv";
     std::ofstream out;
 
     if (frame_idx == 0) {
         out.open(filename);
-        out << "frame_idx,time,V_w,T_sat,R_dual,max_constraint_violation\n";
+        out << "frame_idx,time,V_w,T_sat,R_dual,max_constraint_violation,ccd_toi_ratio,ccd_substeps,newton_fallbacks,solver_converged\n";
     } else {
         out.open(filename, std::ios_base::app);
     }
@@ -72,7 +76,11 @@ void StateExporter::exportKPIFrame(int frame_idx,
         << v_w << ","
         << t_sat << ","
         << r_dual << ","
-        << max_constraint_violation << "\n";
+        << max_constraint_violation << ","
+        << ccd_toi_ratio << ","
+        << ccd_substeps << ","
+        << newton_fallbacks << ","
+        << solver_converged << "\n";
 }
 
 } // namespace NexDynIPC::App

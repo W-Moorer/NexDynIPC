@@ -515,12 +515,48 @@ void SceneLoader::load(const std::string& filename, Dynamics::World& world, Simu
             if (s.contains("kpi_v_w_max")) config.kpi_v_w_max = s["kpi_v_w_max"].get<double>();
             if (s.contains("kpi_t_sat_max")) config.kpi_t_sat_max = s["kpi_t_sat_max"].get<double>();
             if (s.contains("kpi_r_dual_max")) config.kpi_r_dual_max = s["kpi_r_dual_max"].get<double>();
+
+            if (s.contains("contact")) {
+                const auto& c = s["contact"];
+                if (c.contains("enabled")) config.contact_enabled = c["enabled"].get<bool>();
+                if (c.contains("dhat")) config.contact_dhat = c["dhat"].get<double>();
+
+                if (c.contains("friction")) {
+                    const auto& f = c["friction"];
+                    if (f.contains("enabled")) config.contact_friction_enabled = f["enabled"].get<bool>();
+                    if (f.contains("mu")) config.contact_friction_mu = f["mu"].get<double>();
+                }
+
+                if (c.contains("ccd")) {
+                    const auto& ccd = c["ccd"];
+                    if (ccd.contains("enabled")) config.contact_ccd_enabled = ccd["enabled"].get<bool>();
+                    if (ccd.contains("safety_factor")) config.contact_ccd_safety_factor = ccd["safety_factor"].get<double>();
+                    if (ccd.contains("max_substeps")) config.contact_ccd_max_substeps = ccd["max_substeps"].get<int>();
+                    if (ccd.contains("min_step_ratio")) config.contact_ccd_min_step_ratio = ccd["min_step_ratio"].get<double>();
+                }
+            }
+
+            if (s.contains("solver")) {
+                const auto& solver = s["solver"];
+                if (solver.contains("newton_fallback_enabled")) {
+                    config.solver_newton_fallback_enabled = solver["newton_fallback_enabled"].get<bool>();
+                }
+                if (solver.contains("newton_fallback_retries")) {
+                    config.solver_newton_fallback_retries = solver["newton_fallback_retries"].get<int>();
+                }
+                if (solver.contains("newton_fallback_damping")) {
+                    config.solver_newton_fallback_damping = solver["newton_fallback_damping"].get<double>();
+                }
+            }
             
             std::cout << "Applied settings from JSON:" << std::endl;
             std::cout << "  dt=" << config.dt 
                       << " max_time=" << config.max_time
                       << " gamma=" << config.newmark_gamma 
-                      << " stiffness=" << config.joint_stiffness << std::endl;
+                      << " stiffness=" << config.joint_stiffness
+                      << " contact_dhat=" << config.contact_dhat
+                      << " friction_mu=" << config.contact_friction_mu
+                      << " ccd_safety=" << config.contact_ccd_safety_factor << std::endl;
         }
 
         if (config.output_name == "simulation_results") {
