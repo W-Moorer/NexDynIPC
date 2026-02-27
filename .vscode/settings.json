@@ -1,0 +1,10 @@
+{
+  "cmake.useCMakePresets": "always",
+  "cmake.configureOnOpen": false,
+  "cmake.configureOnEdit": false,
+  "cmake.cmakePath": "C:/Program Files/CMake/bin/cmake.exe",
+  "cmake.sourceDirectory": "${workspaceFolder}",
+  "cmake.configurePreset": "default",
+  "cmake.buildPreset": "default-debug",
+  "cmake.testPreset": "test-debug"
+}

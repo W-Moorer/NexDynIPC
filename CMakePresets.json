@@ -1,14 +1,57 @@
 {
-    "version": 3,
+    "version": 6,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 20,
+        "patch": 0
+    },
     "configurePresets": [
         {
-            "name": "default",
-            "displayName": "Default Config",
-            "description": "Default build using vcpkg toolchain",
+            "name": "base",
+            "hidden": true,
             "binaryDir": "${sourceDir}/build",
+            "environment": {
+                "VCPKG_ROOT": "C:/vcpkg"
+            },
             "cacheVariables": {
                 "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
                 "VCPKG_INSTALLED_DIR": "${sourceDir}/vcpkg_installed"
+            }
+        },
+        {
+            "name": "default",
+            "displayName": "VS2022 x64 (vcpkg)",
+            "description": "Visual Studio 2022 x64 with vcpkg toolchain",
+            "inherits": "base",
+            "generator": "Visual Studio 17 2022",
+            "architecture": {
+                "value": "x64",
+                "strategy": "set"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "default-debug",
+            "displayName": "Build Debug",
+            "configurePreset": "default",
+            "configuration": "Debug"
+        },
+        {
+            "name": "default-release",
+            "displayName": "Build Release",
+            "configurePreset": "default",
+            "configuration": "Release"
+        }
+    ],
+    "testPresets": [
+        {
+            "name": "test-debug",
+            "displayName": "CTest Debug",
+            "configurePreset": "default",
+            "configuration": "Debug",
+            "output": {
+                "outputOnFailure": true
             }
         }
     ]

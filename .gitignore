@@ -41,7 +41,10 @@
 *.dwo
 
 .trae/
+.codebuddy/
+
 temps/
+local/
 output/
 figures/
 build/

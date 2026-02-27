@@ -1,0 +1,70 @@
+{
+  "case_name": "prismatic_slider_press",
+  "description": "移动副/压装场景迁移验证基线。当前可运行为fixed+prismatic；未来验证行程限位与线速度驱动饱和。",
+  "settings": {
+    "dt": 0.001,
+    "max_time": 2.0,
+    "output_dir": "output/prismatic_slider_press",
+    "integrator_type": "ImplicitNewmark",
+    "newmark_beta": 0.25,
+    "newmark_gamma": 0.5,
+    "joint_stiffness": 3000000.0,
+    "output_name": "prismatic_slider_press"
+  },
+  "bodies": [
+    {
+      "id": 0,
+      "name": "Frame",
+      "mass": 1.0,
+      "position": [0.0, 0.0, 0.0],
+      "inertia": [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+    },
+    {
+      "id": 1,
+      "name": "Slider",
+      "mass": 2.0,
+      "position": [0.2, 0.0, 0.0],
+      "inertia": [[0.03, 0.0, 0.0], [0.0, 0.03, 0.0], [0.0, 0.0, 0.03]]
+    }
+  ],
+  "joints": [
+    {
+      "type": "fixed",
+      "body": 0,
+      "position": [0.0, 0.0, 0.0],
+      "stiffness": 10000000.0
+    },
+    {
+      "type": "prismatic",
+      "body_a": 0,
+      "body_b": 1,
+      "anchor_a": [0.0, 0.0, 0.0],
+      "anchor_b": [-0.2, 0.0, 0.0],
+      "axis_a": [1.0, 0.0, 0.0],
+      "axis_b": [1.0, 0.0, 0.0],
+      "stiffness": 3000000.0
+    }
+  ],
+  "validation_targets": {
+    "future_constraints": [
+      {
+        "type": "distance_limits",
+        "joint_ref": 1,
+        "min_translation_m": 0.10,
+        "max_translation_m": 0.50,
+        "tolerance_m": 0.002
+      },
+      {
+        "type": "linear_velocity_drive",
+        "joint_ref": 1,
+        "target_velocity_mps": 0.20,
+        "max_force_n": 80.0,
+        "delay_mps": 0.01
+      }
+    ],
+    "acceptance": {
+      "max_lateral_drift_m": 0.003,
+      "max_limit_overshoot_m": 0.002
+    }
+  }
+}

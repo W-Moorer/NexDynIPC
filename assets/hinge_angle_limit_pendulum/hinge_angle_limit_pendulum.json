@@ -1,0 +1,64 @@
+{
+  "case_name": "hinge_angle_limit_pendulum",
+  "description": "单摆铰链角限位迁移验证基线。当前可运行为fixed+revolute；未来验证角限位与限位反力。",
+  "settings": {
+    "dt": 0.001,
+    "max_time": 2.0,
+    "output_dir": "output/hinge_angle_limit_pendulum",
+    "integrator_type": "ImplicitNewmark",
+    "newmark_beta": 0.25,
+    "newmark_gamma": 0.5,
+    "joint_stiffness": 5000000.0,
+    "output_name": "hinge_angle_limit_pendulum"
+  },
+  "bodies": [
+    {
+      "id": 0,
+      "name": "Base",
+      "mass": 1.0,
+      "position": [0.0, 0.0, 0.0],
+      "inertia": [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+    },
+    {
+      "id": 1,
+      "name": "Link",
+      "mass": 1.0,
+      "position": [0.8, 0.0, 0.0],
+      "inertia": [[0.02, 0.0, 0.0], [0.0, 0.02, 0.0], [0.0, 0.0, 0.10]]
+    }
+  ],
+  "joints": [
+    {
+      "type": "fixed",
+      "body": 0,
+      "position": [0.0, 0.0, 0.0],
+      "stiffness": 10000000.0
+    },
+    {
+      "type": "revolute",
+      "body_a": 0,
+      "body_b": 1,
+      "anchor_a": [0.0, 0.0, 0.0],
+      "anchor_b": [-0.8, 0.0, 0.0],
+      "axis_a": [0.0, 0.0, 1.0],
+      "axis_b": [0.0, 0.0, 1.0],
+      "stiffness": 5000000.0
+    }
+  ],
+  "validation_targets": {
+    "future_constraints": [
+      {
+        "type": "angle_limit",
+        "joint_ref": 1,
+        "axis": [0.0, 0.0, 1.0],
+        "min_angle_deg": -30.0,
+        "max_angle_deg": 30.0,
+        "tolerance_deg": 1.0
+      }
+    ],
+    "acceptance": {
+      "max_constraint_violation_m": 0.005,
+      "max_angle_overshoot_deg": 1.0
+    }
+  }
+}
