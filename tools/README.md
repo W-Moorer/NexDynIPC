@@ -58,6 +58,25 @@ python tools/csv_visualizer.py <csv文件> [--columns 列名1 列名2 ...]
 python tools/csv_visualizer.py output/simulation_results.csv
 ```
 
+#### 指定精确输出目录
+当希望图像直接输出到 `figures/<case_name>/`（不再追加CSV文件名子目录）时：
+```bash
+python tools/csv_visualizer.py output/motor_torque_saturation/motor_torque_saturation.csv -o figures/motor_torque_saturation --exact-output
+```
+
+---
+
+### 4. `run_asset_suite.py`
+**用途**：批量运行 `assets/*/*.json` 场景，自动生成：
+- 仿真 CSV：`output/<case_name>/`
+- 可视化图：`figures/<case_name>/`
+- 汇总结果：`output/asset_suite_summary.csv`
+
+#### 用法
+```bash
+python tools/run_asset_suite.py --exe build/Debug/NexDynIPC.exe
+```
+
 ---
 
 ## 依赖库

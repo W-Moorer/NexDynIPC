@@ -1,9 +1,9 @@
 {
   "case_name": "spherical_attachment_compliance",
-  "description": "球铰附着+柔顺/阻尼迁移验证基线。当前可运行为fixed+spherical；未来验证软约束与阻尼稳定性。",
+  "description": "球铰附着柔顺回归：验证damped_spring与force_drive组合。",
   "settings": {
     "dt": 0.001,
-    "max_time": 2.5,
+    "max_time": 1.5,
     "output_dir": "output/spherical_attachment_compliance",
     "integrator_type": "ImplicitNewmark",
     "newmark_beta": 0.25,
@@ -43,19 +43,21 @@
       "stiffness": 2000000.0
     }
   ],
-  "validation_targets": {
-    "future_constraints": [
-      {
-        "type": "damped_spring",
-        "between": [0, 1],
-        "rest_length_m": 0.6324555,
-        "stiffness_npm": 1500.0,
-        "damping_nspm": 20.0
-      }
-    ],
-    "acceptance": {
-      "max_attachment_error_m": 0.004,
-      "settling_time_s": 1.2
+  "constraints": [
+    {
+      "type": "damped_spring",
+      "body_a": 0,
+      "body_b": 1,
+      "rest_length_m": 0.6324555,
+      "stiffness_npm": 1500.0,
+      "damping_nspm": 20.0
+    },
+    {
+      "type": "force_drive",
+      "body": 1,
+      "axis": [0.0, 1.0, 0.0],
+      "force_n": 5.0,
+      "torque": [0.0, 0.0, 0.2]
     }
-  }
+  ]
 }

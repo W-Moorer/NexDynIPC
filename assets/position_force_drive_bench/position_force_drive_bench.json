@@ -1,30 +1,30 @@
 {
-  "case_name": "prismatic_slider_press",
-  "description": "移动副压装回归：验证linear_velocity_drive线速度驱动链路。",
+  "case_name": "position_force_drive_bench",
+  "description": "位置驱动+外力驱动回归：覆盖position_drive与force_drive接口。",
   "settings": {
     "dt": 0.001,
-    "max_time": 1.0,
-    "output_dir": "output/prismatic_slider_press",
+    "max_time": 1.2,
+    "output_dir": "output/position_force_drive_bench",
     "integrator_type": "ImplicitNewmark",
     "newmark_beta": 0.25,
     "newmark_gamma": 0.5,
     "joint_stiffness": 3000000.0,
-    "output_name": "prismatic_slider_press"
+    "output_name": "position_force_drive_bench"
   },
   "bodies": [
     {
       "id": 0,
-      "name": "Frame",
+      "name": "Base",
       "mass": 1.0,
       "position": [0.0, 0.0, 0.0],
       "inertia": [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
     },
     {
       "id": 1,
-      "name": "Slider",
-      "mass": 2.0,
+      "name": "Block",
+      "mass": 1.5,
       "position": [0.2, 0.0, 0.0],
-      "inertia": [[0.03, 0.0, 0.0], [0.0, 0.03, 0.0], [0.0, 0.0, 0.03]]
+      "inertia": [[0.04, 0.0, 0.0], [0.0, 0.04, 0.0], [0.0, 0.0, 0.04]]
     }
   ],
   "joints": [
@@ -47,15 +47,21 @@
   ],
   "constraints": [
     {
-      "type": "linear_velocity_drive",
+      "type": "position_drive",
       "body_a": 0,
       "body_b": 1,
       "axis": [1.0, 0.0, 0.0],
-      "target_velocity_mps": 0.05,
-      "kv": 20.0,
-      "max_force_n": 15.0,
-      "delay_mps": 0.01,
-      "delay_tau": 0.02
+      "target_position_m": 0.45,
+      "kp": 140.0,
+      "max_force_n": 60.0,
+      "deadzone_m": 0.005
+    },
+    {
+      "type": "force_drive",
+      "body": 1,
+      "axis": [0.0, 1.0, 0.0],
+      "force_n": 4.0,
+      "torque": [0.0, 0.0, 0.1]
     }
   ]
 }

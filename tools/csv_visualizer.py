@@ -582,7 +582,7 @@ class PlotGenerator:
 # 主函数和命令行接口
 # =============================================================================
 
-def process_csv_file(csv_file_path: str, output_dir: str = None) -> bool:
+def process_csv_file(csv_file_path: str, output_dir: str = None, exact_output: bool = False) -> bool:
     """
     处理单个CSV文件
     
@@ -601,13 +601,14 @@ def process_csv_file(csv_file_path: str, output_dir: str = None) -> bool:
         print(f"错误: 文件不存在 {csv_file_path}")
         return False
     
-    # 设置输出目录：figures/CSV文件名（不含扩展名）
+    # 设置输出目录：默认 figures/CSV文件名（不含扩展名）
     csv_name = csv_path.stem  # 获取文件名（不含扩展名）
     if output_dir is None:
-        # 默认输出到项目根目录的figures/CSV文件名/
-        output_dir = csv_path.parent.parent / 'figures' / csv_name
+        output_dir = Path('figures') / csv_name
     else:
-        output_dir = Path(output_dir) / csv_name
+        output_dir = Path(output_dir)
+        if not exact_output:
+            output_dir = output_dir / csv_name
     
     print(f"\n{'='*60}")
     print(f"处理文件: {csv_path.name}")
@@ -693,6 +694,8 @@ def main():
                        help='输出目录路径（默认为figures目录）')
     parser.add_argument('-l', '--list', action='store_true',
                        help='列出支持的物理量类型')
+    parser.add_argument('--exact-output', action='store_true',
+                       help='将-o目录作为最终输出目录，不自动追加CSV文件名子目录')
     
     args = parser.parse_args()
     
@@ -721,7 +724,7 @@ def main():
             matching_files = [pattern]
         
         for file_path in matching_files:
-            if process_csv_file(file_path, args.output):
+            if process_csv_file(file_path, args.output, args.exact_output):
                 success_count += 1
             else:
                 fail_count += 1

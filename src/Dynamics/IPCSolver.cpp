@@ -19,8 +19,13 @@
 #include <iostream>
 #include <unordered_map>
 #include <algorithm>
+#include <cmath>
 
 namespace NexDynIPC::Dynamics {
+
+namespace {
+constexpr double kMaxALMStiffness = 1e12;
+}
 
 class SimulationProblem : public Math::OptimizationProblem {
 public:
@@ -466,10 +471,20 @@ void IPCSolver::step(World& world, double dt) {
             if (C.size() > 0) {
                 const double inf_norm = C.cwiseAbs().maxCoeff();
                 max_constraint_violation = std::max(max_constraint_violation, inf_norm);
-                dual_residual = std::max(dual_residual, joint->getStiffness() * inf_norm);
+                const double dual_candidate = joint->getStiffness() * inf_norm;
+                if (std::isfinite(dual_candidate)) {
+                    dual_residual = std::max(dual_residual, std::min(dual_candidate, kMaxALMStiffness));
+                } else {
+                    dual_residual = std::max(dual_residual, kMaxALMStiffness);
+                }
 
                 if (inf_norm > alm_hardening_trigger_ * alm_constraint_tolerance_) {
-                    joint->setStiffness(joint->getStiffness() * alm_hardening_ratio_);
+                    const double next_stiffness = joint->getStiffness() * alm_hardening_ratio_;
+                    if (std::isfinite(next_stiffness)) {
+                        joint->setStiffness(std::min(next_stiffness, kMaxALMStiffness));
+                    } else {
+                        joint->setStiffness(kMaxALMStiffness);
+                    }
                 }
             }
         }

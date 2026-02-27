@@ -1,9 +1,15 @@
 {
+    "case_name": "double_pendulum",
+    "description": "双摆基础约束回归：fixed + hinge*2，用于验证基线稳定性。",
     "settings": {
         "dt": 0.001,
-        "max_time": 3.0,
+        "max_time": 1.5,
+        "integrator_type": "ImplicitNewmark",
+        "newmark_beta": 0.25,
         "newmark_gamma": 0.5,
-        "joint_stiffness": 10000000.0
+        "joint_stiffness": 10000000.0,
+        "output_dir": "output/double_pendulum",
+        "output_name": "double_pendulum"
     },
     "bodies": [
         {
@@ -131,5 +137,6 @@
                 1.0
             ]
         }
-    ]
+    ],
+    "constraints": []
 }

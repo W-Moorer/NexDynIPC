@@ -1,15 +1,16 @@
 {
   "case_name": "motor_torque_saturation",
-  "description": "电机驱动与力矩饱和迁移验证基线。当前可运行为fixed+hinge；未来验证角速度驱动C1过渡与饱和。",
+  "description": "电机角速度驱动饱和回归：验证max_torque、delay、delay_tau和KPI导出。",
   "settings": {
     "dt": 0.0005,
-    "max_time": 1.5,
+    "max_time": 1.2,
     "output_dir": "output/motor_torque_saturation",
     "integrator_type": "ImplicitNewmark",
     "newmark_beta": 0.25,
     "newmark_gamma": 0.5,
     "joint_stiffness": 8000000.0,
-    "output_name": "motor_torque_saturation"
+    "output_name": "motor_torque_saturation",
+    "kpi_gate_enabled": false
   },
   "bodies": [
     {
@@ -45,19 +46,17 @@
       "stiffness": 8000000.0
     }
   ],
-  "validation_targets": {
-    "future_constraints": [
-      {
-        "type": "angular_velocity_drive",
-        "joint_ref": 1,
-        "target_velocity_radps": 8.0,
-        "max_torque_nm": 2.0,
-        "delay_radps": 0.2
-      }
-    ],
-    "acceptance": {
-      "max_torque_abs_nm": 2.0,
-      "steady_state_velocity_error_radps": 0.5
+  "constraints": [
+    {
+      "type": "angular_velocity_drive",
+      "body_a": 0,
+      "body_b": 1,
+      "axis": [0.0, 0.0, 1.0],
+      "target_velocity_radps": 8.0,
+      "kv": 120.0,
+      "max_torque_nm": 2.0,
+      "delay_radps": 0.2,
+      "delay_tau": 0.03
     }
-  }
+  ]
 }

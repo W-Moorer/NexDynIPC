@@ -1,30 +1,30 @@
 {
-  "case_name": "hinge_angle_limit_pendulum",
-  "description": "单摆角限位回归：验证angle_limit不等式约束链路。",
+  "case_name": "distance_limit_regression",
+  "description": "距离限位回归：验证distance_limits不等式约束在稳定工况下的求解与导出。",
   "settings": {
     "dt": 0.001,
     "max_time": 1.0,
-    "output_dir": "output/hinge_angle_limit_pendulum",
+    "output_dir": "output/distance_limit_regression",
     "integrator_type": "ImplicitNewmark",
     "newmark_beta": 0.25,
     "newmark_gamma": 0.5,
-    "joint_stiffness": 5000000.0,
-    "output_name": "hinge_angle_limit_pendulum"
+    "joint_stiffness": 2000000.0,
+    "output_name": "distance_limit_regression"
   },
   "bodies": [
     {
       "id": 0,
-      "name": "Base",
+      "name": "Anchor",
       "mass": 1.0,
       "position": [0.0, 0.0, 0.0],
       "inertia": [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
     },
     {
       "id": 1,
-      "name": "Link",
+      "name": "Follower",
       "mass": 1.0,
-      "position": [0.8, 0.0, 0.0],
-      "inertia": [[0.02, 0.0, 0.0], [0.0, 0.02, 0.0], [0.0, 0.0, 0.10]]
+      "position": [0.35, 0.0, 0.0],
+      "inertia": [[0.02, 0.0, 0.0], [0.0, 0.02, 0.0], [0.0, 0.0, 0.02]]
     }
   ],
   "joints": [
@@ -35,24 +35,21 @@
       "stiffness": 10000000.0
     },
     {
-      "type": "hinge",
+      "type": "spherical",
       "body_a": 0,
       "body_b": 1,
       "anchor_a": [0.0, 0.0, 0.0],
-      "anchor_b": [-0.8, 0.0, 0.0],
-      "axis_a": [0.0, 0.0, 1.0],
-      "axis_b": [0.0, 0.0, 1.0],
-      "stiffness": 5000000.0
+      "anchor_b": [-0.35, 0.0, 0.0],
+      "stiffness": 2000000.0
     }
   ],
   "constraints": [
     {
-      "type": "angle_limit",
+      "type": "distance_limits",
       "body_a": 0,
       "body_b": 1,
-      "axis": [0.0, 0.0, 1.0],
-      "min_angle_deg": -60.0,
-      "max_angle_deg": 60.0,
+      "min_distance_m": 0.2,
+      "max_distance_m": 0.6,
       "stiffness": 50000.0
     }
   ]
